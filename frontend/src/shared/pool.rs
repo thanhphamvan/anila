@@ -25,6 +25,8 @@ struct Entry {
     fit: FitAddon,
     _on_data: Closure<dyn FnMut(String)>,
     _on_key: Closure<dyn FnMut(web_sys::KeyboardEvent) -> bool>,
+    _on_selection: Closure<dyn FnMut()>,
+    _on_osc52: Closure<dyn FnMut(String) -> bool>,
     ch: Ch,
     req: Req,
     size: (u16, u16),
@@ -111,6 +113,8 @@ impl Pool {
             term.load_addon(&fit);
             term.open(&div);
             let on_key = crate::clipboard::install(&term, model.banner);
+            let on_selection = crate::clipboard::install_selection(&term, &div, model.banner);
+            let on_osc52 = crate::clipboard::install_osc52(&term, &div, model.banner);
             fit.fit();
             let size = (term.cols(), term.rows());
             let (ch, req) = conn.open(session.clone(), create, size.0, size.1);
@@ -124,6 +128,8 @@ impl Pool {
                 fit,
                 _on_data: on_data,
                 _on_key: on_key,
+                _on_selection: on_selection,
+                _on_osc52: on_osc52,
                 ch,
                 req,
                 size,

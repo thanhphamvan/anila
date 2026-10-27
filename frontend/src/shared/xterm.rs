@@ -43,6 +43,21 @@ extern "C" {
     #[wasm_bindgen(method, js_name = getSelection)]
     pub fn get_selection(this: &Terminal) -> String;
 
+    #[wasm_bindgen(method, js_name = onSelectionChange)]
+    pub fn on_selection_change(this: &Terminal, callback: &Closure<dyn FnMut()>) -> JsValue;
+
+    #[wasm_bindgen(method, getter)]
+    pub fn parser(this: &Terminal) -> Parser;
+
+    pub type Parser;
+
+    #[wasm_bindgen(method, js_name = registerOscHandler)]
+    pub fn register_osc_handler(
+        this: &Parser,
+        identifier: u32,
+        callback: &Closure<dyn FnMut(String) -> bool>,
+    ) -> JsValue;
+
     #[wasm_bindgen(method, js_name = attachCustomKeyEventHandler)]
     pub fn attach_key_handler(
         this: &Terminal,

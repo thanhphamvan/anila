@@ -1,6 +1,9 @@
-//! Real pointer selection, OS clipboard shortcuts and terminal input behavior.
+//! Copy-on-selection, OS clipboard shortcuts and terminal input behavior.
 
 mod common;
+
+#[path = "../../frontend/src/shared/clipboard_payload.rs"]
+mod clipboard_payload;
 
 use std::{process::Command, time::Duration};
 
@@ -57,7 +60,9 @@ fn terminal_clipboard_shortcuts() {
         let x1 = points["x1"].as_f64().unwrap();
         let x2 = points["x2"].as_f64().unwrap();
         let y = points["y"].as_f64().unwrap();
+        page.eval("navigator.clipboard.writeText('before-highlight')").await.unwrap();
         page.drag((x1, y), (x2, y), 0).await.unwrap();
+        page.wait_for("navigator.clipboard.readText().then(text => text === 'copy-this-terminal-text')", Duration::from_secs(5)).await.expect("highlight copies without a shortcut");
         page.wait_for("document.querySelectorAll('.xterm-selection div').length > 0", Duration::from_secs(5)).await.unwrap();
         for modifiers in [10, 2, 4] {
             page.eval("navigator.clipboard.writeText('clipboard-sentinel')").await.unwrap();
@@ -69,16 +74,25 @@ fn terminal_clipboard_shortcuts() {
                 page.eval("document.activeElement?.className").await,
                 page.text("section.terminal .error").await);
         }
+        page.eval("navigator.clipboard.writeText('keep-on-clear')").await.unwrap();
+        page.click(".xterm-screen").await.unwrap();
+        page.wait_for("document.querySelectorAll('.xterm-selection div').length === 0", Duration::from_secs(5)).await.expect("selection cleared before mouse mode");
+        assert_eq!(page.eval("navigator.clipboard.readText()").await.unwrap(), "keep-on-clear", "clearing selection must preserve the clipboard");
         // With mouse reporting active, Shift-drag must still select locally.
         tmux.cmd(&["set-option", "-g", "mouse", "on"]);
         page.wait_for("document.querySelector('.xterm.enable-mouse-events') !== null", Duration::from_secs(5)).await.expect("tmux mouse reporting enabled");
+        // A new completed selection must copy without a keyboard shortcut.
+        page.eval("navigator.clipboard.writeText('before-shift-highlight')").await.unwrap();
         page.drag((x1, y), (x2, y), 8).await.unwrap();
+        page.wait_for("navigator.clipboard.readText().then(text => text === 'copy-this-terminal-text')", Duration::from_secs(5)).await.expect("Shift-highlight copies without a shortcut in mouse mode");
         page.wait_for("document.querySelectorAll('.xterm-selection div').length > 0", Duration::from_secs(5)).await.unwrap();
         page.eval("navigator.clipboard.writeText('clipboard-sentinel')").await.unwrap();
         page.shortcut('c', 10).await.unwrap();
         page.wait_for("navigator.clipboard.readText().then(text => text === 'copy-this-terminal-text')", Duration::from_secs(5)).await.expect("Shift-selection in mouse mode copies");
         // Denied clipboard permission must be visible and must not become Ctrl+C input.
         page.eval("Object.defineProperty(navigator.clipboard, 'writeText', { configurable:true, value:() => Promise.reject(new DOMException('denied', 'NotAllowedError')) })").await.unwrap();
+        page.drag((x1, y), (x2 - (x2 - x1) / 23.0, y), 8).await.unwrap();
+        page.wait_for("document.querySelector('section.terminal .error[role=alert]')?.textContent.includes('Allow clipboard access')", Duration::from_secs(5)).await.expect("highlight copy denial is visible");
         page.shortcut('c', 10).await.unwrap();
         page.wait_for("document.querySelector('section.terminal .error[role=alert]')?.textContent.includes('Allow clipboard access')", Duration::from_secs(5)).await.expect("copy denial is shown without a passkey error");
         page.eval("delete navigator.clipboard.writeText").await.unwrap();
@@ -94,6 +108,11 @@ fn terminal_clipboard_shortcuts() {
         page.press("Enter").await.unwrap();
         page.wait_for("document.querySelector('.xterm-rows').innerText.includes('paste-still-works')", Duration::from_secs(10)).await.expect("paste still reaches the terminal");
         assert!(tmux.capture("clipboard").contains("paste-still-works"));
+        // Codex forwards copies through tmux to attached clients as OSC 52.
+        // Exercise the real tmux -> service -> worker -> xterm -> OS path.
+        let unicode = "Codex selection — tiếng Việt 🦀\nline two";
+        tmux.cmd(&["set-buffer", "-w", "-b", "e2e-clipboard", unicode]);
+        page.wait_for(&format!("navigator.clipboard.readText().then(text => text === {})", serde_json::json!(unicode)), Duration::from_secs(5)).await.expect("tmux application copy reaches browser clipboard with Unicode intact");
         // With no selection Ctrl+C must reach cat, which exits its tmux session.
         page.shortcut('c', 2).await.unwrap();
         assert!(anila_e2e::util::wait_until(Duration::from_secs(10), || {

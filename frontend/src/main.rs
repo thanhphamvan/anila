@@ -10,6 +10,8 @@ mod api;
 mod app;
 #[path = "shared/clipboard.rs"]
 mod clipboard;
+#[path = "shared/clipboard_payload.rs"]
+mod clipboard_payload;
 #[path = "shared/conn.rs"]
 mod conn;
 mod edition;

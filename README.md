@@ -113,10 +113,14 @@ an existing installation. The terminal protocol version has not changed.
 
 ## Copy terminal text
 
-Drag to select terminal output, then press **Ctrl+Shift+C** (Linux/Windows)
+Drag to select terminal output; the selection is copied automatically when
+you release the mouse. You can also press **Ctrl+Shift+C** (Linux/Windows)
 or **Cmd+C** (macOS). **Ctrl+C** also copies when text is selected; with no
 selection it still interrupts the running command. If tmux or a terminal
 application captures the mouse, hold **Shift** while dragging to select text.
+Application copies (including Codex and tmux) can also reach the browser through
+OSC 52. Allow clipboard access for the site if your browser prompts. Clipboard
+read requests from terminal applications are ignored.
 
 ## Validation and benchmarks
 
