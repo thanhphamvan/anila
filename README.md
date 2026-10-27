@@ -25,6 +25,10 @@ The frontend and Worker deploy together as one Worker with static assets;
 Cloudflare Pages, D1, R2, a separate database server and an external identity
 provider are not required. Login uses passkeys only.
 
+The common UI lives in `frontend/src/shared/`; `frontend/src/edition.rs`
+supplies the passkey-only behavior. See [frontend sharing](docs/frontend-sharing.md)
+for downstream adapters and deployments consuming this source.
+
 ## Local development
 
 Install stable Rust with the `wasm32-unknown-unknown` target, tmux, a supported

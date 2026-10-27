@@ -40,7 +40,7 @@ The source, rather than older prose or result files, defines these capabilities.
 Implementation references: [`e2e/src/bench.rs`](../e2e/src/bench.rs),
 [`phone.rs`](../e2e/src/phone.rs), [`proxy.rs`](../e2e/src/proxy.rs),
 [`stack.rs`](../e2e/src/stack.rs),
-[`frontend/src/bench.rs`](../frontend/src/bench.rs).
+[`frontend/src/shared/bench.rs`](../frontend/src/shared/bench.rs).
 
 Important measurement boundaries:
 

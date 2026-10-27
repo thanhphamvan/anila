@@ -4,6 +4,7 @@ Read README.md, CONTRIBUTING.md and docs/self-hosting.md. This repository is
 the MIT, passkey-only edition. Do not restore external IdP login or private
 production defaults. Use the public edition's own Git history and tests.
 
+- Shared UI lives in frontend/src/shared/; keep the public edition adapter passkey-only.
 - Wire changes start in proto/ and update shared vectors and both peers.
 - Keep client/channel state machines sans-IO; add regression tests for fixes.
 - Format touched Rust files only: rustfmt --edition 2024 <files>.

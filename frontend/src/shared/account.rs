@@ -3,6 +3,7 @@
 use crate::{
     api,
     app::{Model, Screen},
+    edition,
     hosts::{confirm, date, issue},
     pwa,
 };
@@ -35,11 +36,30 @@ fn load<T: serde::de::DeserializeOwned + Send + Sync + 'static>(
     });
 }
 
+/// End the session and go back to the sign-in page.
+pub(crate) fn sign_out(model: Model) {
+    spawn_local(async move {
+        match api::change("POST", "/api/logout", None, false).await {
+            Ok(_) => {
+                model.disconnect_all();
+                model.me.set(None);
+                model.hosts.set(Vec::new());
+                model.current.set(None);
+                model.pending_session.set(None);
+                model.error.set(String::new());
+                model.screen.set(Screen::SignIn);
+            }
+            Err(e) => model.error.set(e),
+        }
+    });
+}
+
 /// Account settings and, for administrators, account management.
 #[component]
 pub(crate) fn Account(model: Model) -> impl IntoView {
     let me = model.me.get_untracked();
     let admin = me.as_ref().is_some_and(|m| m.account.admin);
+    let passkey = edition::passkeys_allowed(me.as_ref());
     let own_id = StoredValue::new(
         me.as_ref()
             .map(|m| m.account.id.clone())
@@ -50,7 +70,9 @@ pub(crate) fn Account(model: Model) -> impl IntoView {
     let accounts = RwSignal::new(Vec::<AccountView>::new());
     let device_code = RwSignal::new(String::new());
     let invite_code = RwSignal::new(String::new());
-    load(model, "/api/passkeys", passkeys);
+    if passkey {
+        load(model, "/api/passkeys", passkeys);
+    }
     if admin {
         load(model, "/api/admin/accounts", accounts);
     }
@@ -58,6 +80,7 @@ pub(crate) fn Account(model: Model) -> impl IntoView {
         <section class="account">
             <button on:click=move |_| model.machines()>"‹ Machines"</button>
             <header class="bar"><h1>{name}</h1>{admin.then(|| view! { <span class="badge">"Administrator"</span> })}</header>
+            <Show when=move || passkey>
             <h2>"Passkeys"</h2>
             <ul class="passkeys">{move || passkeys.get().into_iter().map(|key| view! {
                 <li class="passkey"><span>{key.label}</span>
@@ -78,21 +101,10 @@ pub(crate) fn Account(model: Model) -> impl IntoView {
                 <code class="device-code">{move || device_code.get()}</code>
                 <p>"On the other device, open this site, choose \"First time on this device?\" and enter the code. It works once, for 10 minutes."</p>
             </Show>
+            </Show>
+            {edition::account_section(model)}
             <pwa::Notifications />
-            <button class="signout" on:click=move |_| spawn_local(async move {
-                match api::change("POST", "/api/logout", None, false).await {
-                    Ok(_) => {
-                        model.disconnect_all();
-                        model.me.set(None);
-                        model.hosts.set(Vec::new());
-                        model.current.set(None);
-                        model.pending_session.set(None);
-                        model.error.set(String::new());
-                        model.screen.set(Screen::SignIn);
-                    }
-                    Err(e) => model.error.set(e),
-                }
-            })>"Sign out"</button>
+            <button class="signout" on:click=move |_| sign_out(model)>"Sign out"</button>
             {admin.then(|| view! {
                 <section class="admin">
                     <h2>"Administration"</h2>
@@ -102,10 +114,11 @@ pub(crate) fn Account(model: Model) -> impl IntoView {
                     </Show>
                     <ul class="accounts">{move || accounts.get().into_iter().map(|account| {
                         let other = account.id != own_id.get_value();
+                        let suffix = edition::account_suffix(&account);
                         view! {
                             <li class="account-row"><span>{account.name}</span>
                                 {account.admin.then(|| view! { <span class="badge">"admin"</span> })}
-                                <span class="muted small">{format!("{} machines · {} passkeys · Created {}", account.hosts, account.passkeys, date(account.created_at))}</span>
+                                <span class="muted small">{format!("{} machines · {} passkeys · Created {}{}", account.hosts, account.passkeys, date(account.created_at), suffix)}</span>
                                 {other.then(|| view! { <button on:click=move |_| {
                                     if !confirm("Delete this account and its machines?") { return; }
                                     let path = format!("/api/admin/accounts/{}", js_sys::encode_uri_component(&account.id));

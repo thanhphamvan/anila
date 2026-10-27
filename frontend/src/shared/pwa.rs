@@ -10,11 +10,11 @@ use wasm_bindgen_futures::{JsFuture, spawn_local};
 
 use crate::api;
 
-fn get(object: &JsValue, key: &str) -> Result<JsValue, String> {
+pub(crate) fn get(object: &JsValue, key: &str) -> Result<JsValue, String> {
     Reflect::get(object, &key.into()).map_err(api::error)
 }
 
-fn call(object: &JsValue, key: &str, args: &[JsValue]) -> Result<JsValue, String> {
+pub(crate) fn call(object: &JsValue, key: &str, args: &[JsValue]) -> Result<JsValue, String> {
     get(object, key)?
         .dyn_into::<Function>()
         .map_err(|_| format!("Browser API {key} is unavailable"))?

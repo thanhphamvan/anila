@@ -3,7 +3,8 @@
 The public edition lives in a new local repository at `anila-open-source`,
 created from source commit `9d47c6b` without private Git history or ignored
 operational files. Van-Thanh Pham authorized MIT licensing on 2026-10-27.
-The original repository is unchanged.
+The initial snapshot preserved the original repository. Subsequent shared-frontend
+work also updates that private consumer; see docs/frontend-sharing.md.
 
 ## Implemented
 

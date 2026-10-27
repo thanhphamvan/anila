@@ -236,7 +236,7 @@ the e2e and bench parts.
 | Task | Scope | Files | Reviewer runs |
 | ---- | ----- | ----- | ------------- |
 | T36 | O1 coalescer | `service/src/coalesce.rs`, `service/src/link.rs` | `bench` codecs + net |
-| T37 | O2a terminal pool | `frontend/src/app.rs`, `frontend/src/tabs.rs`, new `frontend/src/pool.rs`, `frontend/style.css` | `browser` |
+| T37 | O2a terminal pool | `frontend/src/shared/app.rs`, `frontend/src/shared/tabs.rs`, new `frontend/src/shared/pool.rs`, `frontend/style.css` | `browser` |
 | T38 | O3 watch | `proto/src/{control,limits}.rs`, `proto/vectors/`, `worker/src/room.rs`, `service/src/link.rs` | `tenancy`, `chaos`, `versions`, new watch checks |
 | T39 | O2b socket per machine | `frontend/src/{app,conn,tabs,hosts}.rs` | `browser` |
 | T40 | O4 phone CPU bench | `e2e/src/bin/anila-bench*`, `frontend` bench feature | `phone-cpu` |

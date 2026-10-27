@@ -55,3 +55,18 @@ performed. See the deployment guide and benchmark specification for those
 procedures. Ten upstream crates lack full-text license notices in the
 available source/supplements; see THIRD_PARTY_NOTICES.md before distributing
 binaries that include them, especially frontend wasm.
+
+## Shared frontend change
+
+The common modules now live in `frontend/src/shared/`, with a passkey-only
+adapter at `frontend/src/edition.rs`. Downstream private adapters can consume
+these modules and assets without maintaining a second copy of the UI.
+
+For this refactor, both public and private frontend wasm clippy checks passed
+with warnings denied. Both release frontend builds passed. The public browser
+suite and `passkey_only` removed-route test passed; the private consumer's
+IdP browser, passkey browser and IdP HTTP suites also passed. Four Python
+consumer tests cover live shared edits, the preserved private adapter, an
+independent CI checkout, the local HTML build context and source-revision
+validation. GitHub workflow changes in the consumer passed actionlint 1.7.7.
+No live deployment or remote workflow run was performed.

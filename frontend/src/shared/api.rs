@@ -76,7 +76,7 @@ pub async fn request_step_up(
 ) -> Result<(u16, Value), String> {
     let reply = request(method, path, body.clone()).await?;
     if reply.0 == 401 && reply.1["error"]["code"] == "step_up" {
-        crate::app::authenticate(None).await?;
+        crate::edition::reauthenticate().await?;
         request(method, path, body).await
     } else {
         Ok(reply)

@@ -3,7 +3,7 @@
 use crate::{
     account, api,
     conn::{Connection, Notice},
-    hosts, passkey,
+    edition, hosts, passkey,
     pool::Pool,
     pwa,
     tabs::{self, OpenTab, TabBar},
@@ -39,6 +39,7 @@ pub(crate) struct Link {
 pub(crate) enum Screen {
     Loading,
     SignIn,
+    Restricted,
     Machines,
     Account,
     MachineSettings(HostId),
@@ -50,6 +51,7 @@ pub(crate) enum Screen {
 #[derive(Clone, Copy)]
 pub(crate) struct Model {
     pub(crate) me: RwSignal<Option<Me>>,
+    pub(crate) edition: edition::State,
     pub(crate) hosts: RwSignal<Vec<HostView>>,
     pub(crate) current: RwSignal<Option<HostId>>,
     pub(crate) pending_host: RwSignal<Option<HostId>>,
@@ -225,7 +227,13 @@ impl Model {
         });
     }
     async fn load(self) -> Result<(), String> {
-        self.me.set(Some(api::read::<Me>("/api/me").await?));
+        let me = api::read::<Me>("/api/me").await?;
+        let allowed = edition::terminal_allowed(&me);
+        self.me.set(Some(me));
+        if !allowed {
+            self.screen.set(Screen::Restricted);
+            return Ok(());
+        }
         let hosts = api::read::<Vec<HostView>>("/api/hosts").await?;
         let target = hosts::initial_host(
             &hosts,
@@ -489,6 +497,7 @@ pub fn App() -> impl IntoView {
     let (pending_host, pending_session) = pwa::launch_target();
     let model = Model {
         me: RwSignal::new(None),
+        edition: edition::State::new(),
         hosts: RwSignal::new(Vec::new()),
         current: RwSignal::new(None),
         pending_host: RwSignal::new(pending_host),
@@ -516,11 +525,14 @@ pub fn App() -> impl IntoView {
     on_cleanup(move || {
         listener.try_update_value(|value| *value = None);
     });
+    model.edition.initialize(model);
     wasm_bindgen_futures::spawn_local(async move {
-        if let Err(e) = model.load().await {
-            model.error.set(e);
+        let loaded = model.load().await;
+        if let Err(e) = &loaded {
+            model.error.set(e.clone());
             model.screen.set(Screen::SignIn);
         }
+        edition::after_load(model, loaded.is_ok());
     });
     on_cleanup(move || {
         model.disconnect_all();
@@ -534,6 +546,7 @@ pub fn App() -> impl IntoView {
             {move || match model.screen.get() {
                 Screen::Loading => view! { <p class="signin">"Checking sign-in…"</p> }.into_any(),
                 Screen::SignIn => view! { <SignIn model /> }.into_any(),
+                Screen::Restricted => edition::restricted(model),
                 Screen::Machines => view! { <hosts::Machines model /> }.into_any(),
                 Screen::Account => view! { <account::Account model /> }.into_any(),
                 Screen::AddMachine => view! { <hosts::Pair model /> }.into_any(),
@@ -637,6 +650,7 @@ fn SignIn(model: Model) -> impl IntoView {
         <section class="signin">
             <h1>"anila"</h1><p class="muted">"Your tmux sessions, from any browser."</p>
             <button class="primary" disabled=move || busy.get() on:click=move |_| run(false)>"Sign in with passkey"</button>
+            {edition::sign_in_button(model, busy)}
             <button disabled=move || busy.get() on:click=move |_| enroll.update(|v| *v = !*v)>"First time on this device?"</button>
             <Show when=move || enroll.get()>
                 <form on:submit=move |ev| { ev.prevent_default(); run(true); }>
