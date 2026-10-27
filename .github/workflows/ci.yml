@@ -58,6 +58,9 @@ jobs:
       - name: Service worker tests
         run: node --test frontend/tests/sw.test.cjs
 
+      - name: Fetch all locked dependencies for offline integration builds
+        run: cargo fetch --locked
+
       - name: Install the Worker build tool
         run: cargo install worker-build --version 0.8.7 --locked
 
