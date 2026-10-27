@@ -1,0 +1,49 @@
+# Runs scripts/init-server.sh on a fresh Ubuntu 24.04 server with systemd (a
+# privileged container on the runner) against a local worker: it must create
+# cloud-user, pair the machine, start the systemd unit, and a new terminal
+# session must land as cloud-user and `su - alice` must reach Alice's shell.
+# See e2e/tests/init_server.rs.
+name: Init server
+
+on:
+  pull_request:
+    paths:
+      - scripts/init-server.sh
+      - e2e/tests/init_server.rs
+      - service/**
+      - .github/workflows/init-server.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  init-server:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Install tmux and worker-build
+        run: |
+          sudo apt-get update && sudo apt-get install -y tmux
+          cargo install worker-build --version 0.8.7 --locked
+
+      - name: Fetch crates (the harness builds offline)
+        run: cargo fetch
+
+      - name: Build the Linux service
+        run: cargo build --release -p anila-service
+
+      - name: Run init-server.sh in a systemd container
+        run: |
+          ANILA_LINUX_BINARY="$PWD/target/release/anila-service" \
+            cargo test -p anila-e2e --test init_server -- --nocapture

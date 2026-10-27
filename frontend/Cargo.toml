@@ -1,0 +1,28 @@
+[package]
+name = "anila-frontend"
+description = "Web app: session list, xterm.js terminal, passkey sign-in"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+publish.workspace = true
+
+[features]
+bench = []
+
+[dependencies]
+anila-proto.workspace = true
+console_error_panic_hook.workspace = true
+js-sys.workspace = true
+leptos.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+wasm-bindgen.workspace = true
+wasm-bindgen-futures = "0.4"
+base64.workspace = true
+web-sys = { workspace = true, features = [
+  "BinaryType", "CloseEvent", "Credential", "CredentialsContainer", "Crypto", "Document",
+  "ErrorEvent", "Event", "HtmlElement", "HtmlDivElement", "MessageEvent", "Navigator",
+  "PublicKeyCredential", "Request", "RequestCredentials", "RequestInit", "Response",
+  "Storage", "VisibilityState", "WebSocket", "Window",
+] }

@@ -1,0 +1,190 @@
+{
+  "any_spawner-0.3.0": {
+    "repository": "https://github.com/leptos-rs/leptos",
+    "commit": "9b2e313d20c89603ddc0deb7b1133e60c877faed",
+    "files": {
+      "LICENSE": "https://raw.githubusercontent.com/leptos-rs/leptos/9b2e313d20c89603ddc0deb7b1133e60c877faed/LICENSE"
+    },
+    "note": "Upstream repository root license; crate archive omits a license file."
+  },
+  "const_str_slice_concat-0.1.0": {
+    "repository": "https://github.com/leptos-rs/leptos",
+    "commit": "4e23d2b6f1cb74ef7eb08b40ef7f14baa85a7285",
+    "files": {
+      "LICENSE": "https://raw.githubusercontent.com/leptos-rs/leptos/4e23d2b6f1cb74ef7eb08b40ef7f14baa85a7285/LICENSE"
+    },
+    "note": "Upstream repository root license; crate archive omits a license file."
+  },
+  "either_of-0.1.9": {
+    "repository": "https://github.com/leptos-rs/leptos",
+    "commit": "fbc9ed631ff8c19c5eed02a1d4459e202cff7043",
+    "files": {
+      "LICENSE": "https://raw.githubusercontent.com/leptos-rs/leptos/fbc9ed631ff8c19c5eed02a1d4459e202cff7043/LICENSE"
+    },
+    "note": "Upstream repository root license; crate archive omits a license file."
+  },
+  "gloo-net-0.6.0": {
+    "repository": "https://github.com/rustwasm/gloo",
+    "commit": "40c6daa612a90a138ba3e3d70804fcbc5ad4911e",
+    "files": {
+      "LICENSE-MIT": "https://raw.githubusercontent.com/rustwasm/gloo/40c6daa612a90a138ba3e3d70804fcbc5ad4911e/LICENSE-MIT",
+      "LICENSE-APACHE": "https://raw.githubusercontent.com/rustwasm/gloo/40c6daa612a90a138ba3e3d70804fcbc5ad4911e/LICENSE-APACHE"
+    },
+    "note": "Upstream repository root license; crate archive omits a license file."
+  },
+  "gloo-utils-0.2.0": {
+    "repository": "https://github.com/rustwasm/gloo",
+    "commit": "f3bb1d1a1c33dbcccaf26446aca7d0cea8e9d574",
+    "files": {
+      "LICENSE-MIT": "https://raw.githubusercontent.com/rustwasm/gloo/f3bb1d1a1c33dbcccaf26446aca7d0cea8e9d574/LICENSE-MIT",
+      "LICENSE-APACHE": "https://raw.githubusercontent.com/rustwasm/gloo/f3bb1d1a1c33dbcccaf26446aca7d0cea8e9d574/LICENSE-APACHE"
+    },
+    "note": "Upstream repository root license; crate archive omits a license file."
+  },
+  "leptos_config-0.8.10": {
+    "repository": "https://github.com/leptos-rs/leptos",
+    "commit": "fbc9ed631ff8c19c5eed02a1d4459e202cff7043",
+    "files": {
+      "LICENSE": "https://raw.githubusercontent.com/leptos-rs/leptos/fbc9ed631ff8c19c5eed02a1d4459e202cff7043/LICENSE"
+    },
+    "note": "Upstream repository root license; crate archive omits a license file."
+  },
+  "leptos_dom-0.8.8": {
+    "repository": "https://github.com/leptos-rs/leptos",
+    "commit": "da62c0cb9a1d814cf480c2f1dae5f67f4ea4773f",
+    "files": {
+      "LICENSE": "https://raw.githubusercontent.com/leptos-rs/leptos/da62c0cb9a1d814cf480c2f1dae5f67f4ea4773f/LICENSE"
+    },
+    "note": "Upstream repository root license; crate archive omits a license file."
+  },
+  "leptos_server-0.8.8": {
+    "repository": "https://github.com/leptos-rs/leptos",
+    "commit": "584c3a2d884b0e4dba9e3f822a9b6982cff072c7",
+    "files": {
+      "LICENSE": "https://raw.githubusercontent.com/leptos-rs/leptos/584c3a2d884b0e4dba9e3f822a9b6982cff072c7/LICENSE"
+    },
+    "note": "Upstream repository root license; crate archive omits a license file."
+  },
+  "next_tuple-0.1.0": {
+    "repository": "https://github.com/leptos-rs/leptos",
+    "commit": "d665dd4b89151e5d797df3db5cd2260cbe1e8fae",
+    "files": {
+      "LICENSE": "https://raw.githubusercontent.com/leptos-rs/leptos/d665dd4b89151e5d797df3db5cd2260cbe1e8fae/LICENSE"
+    },
+    "note": "Upstream repository root license; crate archive omits a license file."
+  },
+  "oco_ref-0.2.1": {
+    "repository": "https://github.com/leptos-rs/leptos",
+    "commit": "5f2d5115537d08043bba0293c406c4f9b97a4dae",
+    "files": {
+      "LICENSE": "https://raw.githubusercontent.com/leptos-rs/leptos/5f2d5115537d08043bba0293c406c4f9b97a4dae/LICENSE"
+    },
+    "note": "Upstream repository root license; crate archive omits a license file."
+  },
+  "or_poisoned-0.1.0": {
+    "repository": "https://github.com/leptos-rs/leptos",
+    "commit": "6865c1f951bfa0bc5b107aa69286a110cd6f45ca",
+    "files": {
+      "LICENSE": "https://raw.githubusercontent.com/leptos-rs/leptos/6865c1f951bfa0bc5b107aa69286a110cd6f45ca/LICENSE"
+    },
+    "note": "Upstream repository root license; crate archive omits a license file."
+  },
+  "reactive_graph-0.2.16": {
+    "repository": "https://github.com/leptos-rs/leptos",
+    "commit": "fa7f7bd30bf3b835c00bf4878339d8672a94490a",
+    "files": {
+      "LICENSE": "https://raw.githubusercontent.com/leptos-rs/leptos/fa7f7bd30bf3b835c00bf4878339d8672a94490a/LICENSE"
+    },
+    "note": "Upstream repository root license; crate archive omits a license file."
+  },
+  "reactive_stores-0.4.4": {
+    "repository": "https://github.com/leptos-rs/leptos",
+    "commit": "584c3a2d884b0e4dba9e3f822a9b6982cff072c7",
+    "files": {
+      "LICENSE": "https://raw.githubusercontent.com/leptos-rs/leptos/584c3a2d884b0e4dba9e3f822a9b6982cff072c7/LICENSE"
+    },
+    "note": "Upstream repository root license; crate archive omits a license file."
+  },
+  "reactive_stores_macro-0.4.4": {
+    "repository": "https://github.com/leptos-rs/leptos",
+    "commit": "584c3a2d884b0e4dba9e3f822a9b6982cff072c7",
+    "files": {
+      "LICENSE": "https://raw.githubusercontent.com/leptos-rs/leptos/584c3a2d884b0e4dba9e3f822a9b6982cff072c7/LICENSE"
+    },
+    "note": "Upstream repository root license; crate archive omits a license file."
+  },
+  "rstml-0.13.1": {
+    "repository": "https://github.com/rs-tml/rstml",
+    "commit": "9fe0f4616a8224d37d64a53fa91722a08d736952",
+    "files": {
+      "LICENSE": "https://raw.githubusercontent.com/rs-tml/rstml/9fe0f4616a8224d37d64a53fa91722a08d736952/LICENSE"
+    },
+    "note": "Upstream repository root license; crate archive omits a license file."
+  },
+  "server_fn-0.8.13": {
+    "repository": "https://github.com/leptos-rs/leptos",
+    "commit": "30fa4e039455bea69c9467e8ec45cad7fce0722f",
+    "files": {
+      "LICENSE": "https://raw.githubusercontent.com/leptos-rs/leptos/30fa4e039455bea69c9467e8ec45cad7fce0722f/LICENSE"
+    },
+    "note": "Upstream repository root license; crate archive omits a license file."
+  },
+  "tachys-0.2.19": {
+    "repository": "https://github.com/leptos-rs/leptos",
+    "commit": "584c3a2d884b0e4dba9e3f822a9b6982cff072c7",
+    "files": {
+      "LICENSE": "https://raw.githubusercontent.com/leptos-rs/leptos/584c3a2d884b0e4dba9e3f822a9b6982cff072c7/LICENSE"
+    },
+    "note": "Upstream repository root license; crate archive omits a license file."
+  },
+  "throw_error-0.3.1": {
+    "repository": "https://github.com/leptos-rs/leptos",
+    "commit": "43359694b6596f88d911b9c8d8d92a121c27d0ce",
+    "files": {
+      "LICENSE": "https://raw.githubusercontent.com/leptos-rs/leptos/43359694b6596f88d911b9c8d8d92a121c27d0ce/LICENSE"
+    },
+    "note": "Upstream repository root license; crate archive omits a license file."
+  },
+  "valuable-0.1.1": {
+    "repository": "https://github.com/tokio-rs/valuable",
+    "commit": "9efc29b6e58cef28f6566a47aa7e142a55fead77",
+    "files": {
+      "LICENSE": "https://raw.githubusercontent.com/tokio-rs/valuable/9efc29b6e58cef28f6566a47aa7e142a55fead77/LICENSE"
+    },
+    "note": "Upstream repository root license; crate archive omits a license file."
+  },
+  "wasm_split_helpers-0.2.3": {
+    "repository": "https://github.com/WorldSEnder/wasm-split-prototype",
+    "commit": "d8263b20578e8c49b02851009ae3bc7d43c567bd",
+    "files": {
+      "LICENSE": "https://raw.githubusercontent.com/WorldSEnder/wasm-split-prototype/d8263b20578e8c49b02851009ae3bc7d43c567bd/LICENSE"
+    },
+    "note": "Upstream repository root license; crate archive omits a license file."
+  },
+  "wasm_split_macros-0.2.2": {
+    "repository": "https://github.com/WorldSEnder/wasm-split-prototype",
+    "commit": "a3266fe9d998b3f8b0d2111500b7c4b8ec892506",
+    "files": {
+      "LICENSE": "https://raw.githubusercontent.com/WorldSEnder/wasm-split-prototype/a3266fe9d998b3f8b0d2111500b7c4b8ec892506/LICENSE"
+    },
+    "note": "Upstream repository root license; crate archive omits a license file."
+  },
+  "winapi-i686-pc-windows-gnu-0.4.0": {
+    "repository": "https://github.com/retep998/winapi-rs",
+    "commit": "5b1829956ef645f3c2f8236ba18bb198ca4c2468",
+    "files": {
+      "LICENSE-MIT": "https://raw.githubusercontent.com/retep998/winapi-rs/5b1829956ef645f3c2f8236ba18bb198ca4c2468/LICENSE-MIT",
+      "LICENSE-APACHE": "https://raw.githubusercontent.com/retep998/winapi-rs/5b1829956ef645f3c2f8236ba18bb198ca4c2468/LICENSE-APACHE"
+    },
+    "note": "Upstream repository root license; crate archive omits a license file."
+  },
+  "winapi-x86_64-pc-windows-gnu-0.4.0": {
+    "repository": "https://github.com/retep998/winapi-rs",
+    "commit": "5b1829956ef645f3c2f8236ba18bb198ca4c2468",
+    "files": {
+      "LICENSE-MIT": "https://raw.githubusercontent.com/retep998/winapi-rs/5b1829956ef645f3c2f8236ba18bb198ca4c2468/LICENSE-MIT",
+      "LICENSE-APACHE": "https://raw.githubusercontent.com/retep998/winapi-rs/5b1829956ef645f3c2f8236ba18bb198ca4c2468/LICENSE-APACHE"
+    },
+    "note": "Upstream repository root license; crate archive omits a license file."
+  }
+}

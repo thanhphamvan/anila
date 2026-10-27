@@ -1,0 +1,26 @@
+/target/
+/frontend/dist/
+/worker/build/
+/worker/.wrangler/
+/worker/.dev.vars
+node_modules/
+.DS_Store
+/.tmux/
+/worker/.e2e-*.toml
+/e2e/.runs/
+/bench/workloads/synth-*.jsonl
+/worker/.ci.toml
+# Local credentials and provisioning artifacts must never enter the public repo.
+/.cloudflare.toml
+/enroll-code.txt
+/init-this-machine.log
+/init-this-machine.sh
+
+/worker/.deploy.toml
+/scripts/__pycache__/
+/THIRD_PARTY_LICENSES.txt
+/worker/.dev.vars.*
+.env
+.env.*
+*.key
+*.pem

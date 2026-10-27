@@ -1,0 +1,65 @@
+[workspace]
+resolver = "3"
+members = ["proto", "service", "worker", "frontend", "e2e"]
+# `cargo build` / `cargo test` at the root cover the native crates only.
+# The worker and frontend target wasm32 and are built by their own tools.
+default-members = ["proto", "service"]
+
+[workspace.package]
+version = "0.0.3"
+edition = "2024"
+license = "MIT"
+authors = ["Van-Thanh Pham <code@thanhpv.me>"]
+publish = false
+
+[workspace.dependencies]
+anila-proto = { path = "proto" }
+
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "2"
+anyhow = "1"
+proptest = "1"
+
+# crypto, shared by service and worker
+ed25519-dalek = { version = "2", default-features = false, features = ["alloc", "zeroize"] }
+sha2 = { version = "0.10", default-features = false }
+base64 = "0.22"
+miniz_oxide = "0.9"
+
+# service
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "time", "sync", "signal", "io-util", "net"] }
+tokio-tungstenite = { version = "0.30", features = ["connect", "rustls-tls-webpki-roots"] }
+futures-util = { version = "0.3", default-features = false, features = ["sink", "std"] }
+portable-pty = "0.9"
+rand_core = { version = "0.6", features = ["getrandom"] }
+ureq = { version = "2", features = ["json"] }
+clap = { version = "4", features = ["derive"] }
+toml = "1"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# worker
+worker = "0.8"
+p256 = { version = "0.13", default-features = false, features = ["ecdsa", "ecdh", "alloc"] }
+hkdf = "0.12"
+aes-gcm = { version = "0.10", default-features = false, features = ["aes", "alloc"] }
+ciborium = "0.2"
+
+# frontend
+leptos = { version = "0.8", features = ["csr"] }
+wasm-bindgen = "0.2"
+web-sys = "0.3"
+js-sys = "0.3"
+console_error_panic_hook = "0.1"
+
+[profile.release]
+lto = true
+codegen-units = 1
+
+# Bundle size matters on 4G and for the Workers script limit.
+[profile.release.package.anila-frontend]
+opt-level = "z"
+
+[profile.release.package.anila-worker]
+opt-level = "z"

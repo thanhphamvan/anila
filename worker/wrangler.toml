@@ -1,0 +1,33 @@
+name = "anila"
+main = "build/index.js"
+compatibility_date = "2026-09-01"
+
+[build]
+command = "cargo install -q worker-build --version 0.8.7 --locked && worker-build --release"
+
+# The frontend. Requests for /api/* and /ws/* reach the worker first;
+# everything else is a static file, with index.html as the fallback.
+[assets]
+directory = "../frontend/dist"
+not_found_handling = "single-page-application"
+run_worker_first = ["/api/*", "/ws/*"]
+
+[durable_objects]
+bindings = [
+  { name = "HOST_ROOM", class_name = "HostRoom" },
+  { name = "AUTH", class_name = "AuthStore" },
+]
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["HostRoom", "AuthStore"]
+
+# Public configuration; HOST_KEYS holds ed25519 public keys only.
+[vars]
+RP_ID = "term.example.com"
+ORIGIN = "https://term.example.com"
+DEFAULT_HOST = "my-mac"
+HOST_KEYS = "{}"
+
+# Set the private key as a secret with wrangler secret put VAPID_PRIVATE_KEY.
+VAPID_SUBJECT = "mailto:admin@localhost"

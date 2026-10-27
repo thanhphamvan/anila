@@ -1,0 +1,22 @@
+[
+  {
+    "name": "out",
+    "hex": "011234567800 01aabbccdd0000000000000412 6869",
+    "frame": { "kind": "out", "tab": 305419896, "ch": 1, "epoch": 2864434397, "off": 1042, "compressed": false, "bytes_hex": "6869" }
+  },
+  {
+    "name": "out compressed",
+    "hex": "031234567800 01aabbccdd0000000000010000 28b52ffd",
+    "frame": { "kind": "out", "tab": 305419896, "ch": 1, "epoch": 2864434397, "off": 65536, "compressed": true, "bytes_hex": "28b52ffd" }
+  },
+  {
+    "name": "out empty payload",
+    "hex": "011234567800 0200000001 0000000000000000",
+    "frame": { "kind": "out", "tab": 305419896, "ch": 2, "epoch": 1, "off": 0, "compressed": false, "bytes_hex": "" }
+  },
+  {
+    "name": "in",
+    "hex": "021234567800 0100000011 1b",
+    "frame": { "kind": "in", "tab": 305419896, "ch": 1, "id": 17, "bytes_hex": "1b" }
+  }
+]

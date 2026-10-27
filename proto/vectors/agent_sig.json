@@ -1,0 +1,6 @@
+{
+  "seed_hex": "0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20",
+  "public_key": "ebVWLo_mVPlAeLES6KmLp5AfhTrmlb7X4OORC60ElmQ",
+  "ws": { "host": "my-mac", "ts": 1792585534, "nonce": "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08", "sig": "yjxh0IKBSbZdbR9R6C3DXur7D0vt-kSNbWJsYSNS8Ib8NMOdmd4_3kO-Dj0s4hVJwBPWh3E9byHRxcmeI5j3AQ" },
+  "http": { "host": "my-mac", "method": "POST", "path": "/api/agent/enroll-code", "ts": 1792585534, "body": "", "sig": "5-biRxGG8v4Qvb9zDxW5qtZ2fDoEzinSQ-k28GxBbQPlQD-RwVRlwznnzEoq9HT2ibcEwDM_eGNJwLIbq_jjDA" }
+}

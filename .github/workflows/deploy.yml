@@ -1,0 +1,154 @@
+# Deploys the worker and web app to Cloudflare from any branch named
+# deploy/<something> (for example deploy/production), or by hand.
+#
+# Repository settings (Settings → Secrets and variables → Actions):
+#   secrets:   CLOUDFLARE_API_TOKEN   an "Edit Cloudflare Workers" API token
+#              CLOUDFLARE_ACCOUNT_ID  your account id
+#              VAPID_PRIVATE_KEY      optional; from `anila-service vapid-keygen`
+#              ANILA_ACCESS_CLIENT_ID, ANILA_ACCESS_CLIENT_SECRET
+#                                     optional; the Cloudflare Access service token
+#                                     the machines use, for the smoke test
+#   variables: ANILA_ORIGIN           optional; e.g. https://term.example.com. Unset means
+#                                     https://anila.<your workers.dev subdomain>.workers.dev
+#              ANILA_RP_ID            optional; defaults to the hostname of ANILA_ORIGIN
+#              ANILA_DEFAULT_HOST     your host id, e.g. my-mac
+#              ANILA_HOST_KEYS        e.g. {"my-mac": "<public key from anila-service keygen>"}
+#              ANILA_VAPID_SUBJECT    optional; e.g. mailto:you@example.com
+#
+# The job runs in the "production" environment, so you can add reviewers or
+# restrict it to deploy/* branches under Settings → Environments.
+name: Deploy
+
+on:
+  push:
+    branches: ['deploy/**']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+jobs:
+  test:
+    uses: ./.github/workflows/ci.yml
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-24.04
+    environment: production
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}
+      VAR_ORIGIN: ${{ vars.ANILA_ORIGIN }}
+      VAR_RP_ID: ${{ vars.ANILA_RP_ID }}
+      ANILA_DEFAULT_HOST: ${{ vars.ANILA_DEFAULT_HOST }}
+      ANILA_HOST_KEYS: ${{ vars.ANILA_HOST_KEYS }}
+      ANILA_VAPID_SUBJECT: ${{ vars.ANILA_VAPID_SUBJECT }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Check deploy settings
+        run: |
+          missing=""
+          for name in CLOUDFLARE_API_TOKEN CLOUDFLARE_ACCOUNT_ID ANILA_DEFAULT_HOST ANILA_HOST_KEYS; do
+            eval "value=\${$name}"
+            [ -n "$value" ] || missing="$missing $name"
+          done
+          if [ -n "$missing" ]; then
+            echo "::error::Missing repository secrets or variables:$missing (see the comment at the top of .github/workflows/deploy.yml)"
+            exit 1
+          fi
+          [ -n "$VAPID_PRIVATE_KEY" ] || echo "::warning::VAPID_PRIVATE_KEY is not set; push notifications stay off"
+
+      - name: Resolve the origin
+        run: |
+          origin="$VAR_ORIGIN"
+          if [ -z "$origin" ]; then
+            sub=$(curl -sf -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+              "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/subdomain" |
+              python3 -c 'import sys, json; print(json.load(sys.stdin)["result"]["subdomain"])') || {
+              echo "::error::ANILA_ORIGIN is unset and the workers.dev subdomain could not be read; set ANILA_ORIGIN or enable workers.dev for the account"
+              exit 1
+            }
+            origin="https://anila.$sub.workers.dev"
+          fi
+          case "$origin" in https://*) ;; *) echo "::error::ANILA_ORIGIN must be an https:// URL"; exit 1;; esac
+          rp_id="${VAR_RP_ID:-$(printf '%s' "$origin" | sed -E 's|^https://([^/:]+).*|\1|')}"
+          echo "ANILA_ORIGIN=$origin" >> "$GITHUB_ENV"
+          echo "ANILA_RP_ID=$rp_id" >> "$GITHUB_ENV"
+          echo "Deploying for origin $origin (RP ID $rp_id)"
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - uses: Swatinem/rust-cache@v2
+
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: trunk@0.22.0
+
+      - name: Build the web app
+        working-directory: frontend
+        run: trunk build --release
+
+      - name: Write the deploy config
+        run: python3 scripts/ci_wrangler_config.py worker/wrangler.toml worker/.ci.toml
+
+      - name: Deploy
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          wranglerVersion: "4.148.0"
+          workingDirectory: worker
+          command: deploy -c .ci.toml
+          secrets: ${{ secrets.VAPID_PRIVATE_KEY != '' && 'VAPID_PRIVATE_KEY' || '' }}
+
+      - name: Smoke test
+        env:
+          # Optional: the Cloudflare Access service token the machines use.
+          ACCESS_ID: ${{ secrets.ANILA_ACCESS_CLIENT_ID }}
+          ACCESS_SECRET: ${{ secrets.ANILA_ACCESS_CLIENT_SECRET }}
+        run: |
+          # A first deploy can take a few seconds to propagate. Behind
+          # Cloudflare Access a signed-out browser request is redirected to
+          # the Access login instead of reaching the worker.
+          access=false
+          for i in $(seq 1 18); do
+            # `|| true`: a new custom domain may not resolve yet (curl exit 6).
+            out=$(curl -s -o /dev/null -w '%{http_code} %{redirect_url}' "$ANILA_ORIGIN/api/me" || true)
+            status=${out%% *}; location=${out#* }
+            [ "$status" = "401" ] && break
+            case "$status $location" in
+              30[12378]\ *cloudflareaccess.com*) access=true; break ;;
+            esac
+            echo "GET /api/me -> $status, retrying ($i/18)"
+            sleep 5
+          done
+          echo "GET /api/me -> $status ${location}"
+          if [ "$access" = true ]; then
+            echo "::notice::$ANILA_ORIGIN is behind Cloudflare Access"
+          else
+            [ "$status" = "401" ] || { echo "::error::expected 401 from a signed-out /api/me, got $status"; exit 1; }
+            curl -sf "$ANILA_ORIGIN/" | grep -q "<title>anila</title>" || { echo "::error::the web app is not served at $ANILA_ORIGIN"; exit 1; }
+            curl -sf "$ANILA_ORIGIN/manifest.webmanifest" >/dev/null || { echo "::error::manifest missing"; exit 1; }
+          fi
+          # The host machine's service cannot sign in to Access: its paths must
+          # reach the worker (with the service token, if one is configured),
+          # which checks the machine's signature itself.
+          token=()
+          if [ -n "$ACCESS_ID" ] && [ -n "$ACCESS_SECRET" ]; then
+            token=(-H "CF-Access-Client-Id: $ACCESS_ID" -H "CF-Access-Client-Secret: $ACCESS_SECRET")
+          fi
+          status=$(curl -s -o /dev/null -w '%{http_code}' "${token[@]}" -X POST -H 'Content-Type: application/json' -d '{}' "$ANILA_ORIGIN/api/agent/notify")
+          echo "unsigned POST /api/agent/notify -> $status"
+          [ "$status" = "401" ] || { echo "::error::/api/agent/* must reach the worker (expected its 401, got $status). If Cloudflare Access protects $ANILA_ORIGIN, allow /api/agent/ and /ws/agent with a service token (repository secrets ANILA_ACCESS_CLIENT_ID/ANILA_ACCESS_CLIENT_SECRET) or a Bypass policy."; exit 1; }
+          status=$(curl -s -o /dev/null -w '%{http_code}' "${token[@]}" "$ANILA_ORIGIN/ws/agent?host=smoke-test")
+          echo "GET /ws/agent (no upgrade) -> $status"
+          [ "$status" = "426" ] || [ "$status" = "404" ] || { echo "::error::/ws/agent must reach the worker (expected 426, got $status). If Cloudflare Access protects $ANILA_ORIGIN, allow /ws/agent with a service token or a Bypass policy."; exit 1; }
+          echo "Deployed to $ANILA_ORIGIN"

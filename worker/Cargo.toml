@@ -1,0 +1,28 @@
+[package]
+name = "anila-worker"
+description = "Cloudflare Worker: serves the frontend, verifies passkeys, runs the host room and auth store Durable Objects"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+publish.workspace = true
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+anila-proto.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+worker.workspace = true
+wasm-bindgen.workspace = true
+ed25519-dalek.workspace = true
+p256.workspace = true
+sha2.workspace = true
+base64.workspace = true
+ciborium.workspace = true
+hkdf.workspace = true
+aes-gcm.workspace = true
+
+[dev-dependencies]
+p256 = { workspace = true, features = ["ecdsa"] }

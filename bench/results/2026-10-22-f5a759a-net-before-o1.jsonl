@@ -1,0 +1,2 @@
+{"profile":"lan","codec":"zstd_stream","echo_p50_ms":14.171875,"echo_p95_ms":21.05075,"echo_max_ms":27.41025,"throughput_ms":74.55745900000001,"throughput_down_bytes":19376,"resume_ms":26.722709000000002,"git_commit":"f5a759a","timestamp":1792682841,"ping_ms":500,"dead_ms":2000}
+{"profile":"good4g","codec":"zstd_stream","echo_p50_ms":67.184042,"echo_p95_ms":68.709625,"echo_max_ms":69.125,"throughput_ms":110.024917,"throughput_down_bytes":20483,"resume_ms":155.5465,"git_commit":"f5a759a","timestamp":1792682862,"ping_ms":500,"dead_ms":2000}

@@ -1,0 +1,34 @@
+# Copy to ~/.config/anila/service.toml
+
+# The machine id from anila-service pair (or a legacy name from the worker's HOST_KEYS).
+host   = "my-mac"
+worker = "https://term.example.com"
+
+# Cloudflare Access service token, if the worker's domain is behind Access:
+# a token that Access allows on /api/agent/ and /ws/agent. Keep this file
+# private (mode 600). ANILA_ACCESS_CLIENT_ID/ANILA_ACCESS_CLIENT_SECRET
+# override these.
+# access_client_id     = "<id>.access"
+# access_client_secret = "<secret>"
+
+# Private signing key. Leave unset to use the default config directory.
+# key_file = "~/.config/anila/service.key"
+
+# How long a PTY stays attached after its browser tab disappears,
+# and how much output is kept for exact replay.
+grace_secs   = 600
+buffer_bytes = 4194304
+
+# tmux server socket (tmux -L). Leave unset to use your normal server.
+# tmux_socket = "anila"
+
+[[preset]]
+id    = "shell"
+label = "Shell"
+dir   = "~"
+
+[[preset]]
+id    = "claude"
+label = "Claude Code in ~/code"
+dir   = "~/code"
+cmd   = "claude"

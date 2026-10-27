@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#0f161d">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="manifest" href="/manifest.webmanifest" crossorigin="use-credentials">
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+    <link data-trunk rel="copy-file" href="manifest.webmanifest">
+    <link data-trunk rel="copy-file" href="sw.js">
+    <link data-trunk rel="copy-dir" href="icons">
+    <title>anila</title>
+
+    <link data-trunk rel="css" href="vendor/xterm/xterm.css">
+    <link data-trunk rel="css" href="style.css">
+    <link data-trunk rel="copy-dir" href="vendor">
+
+    <!-- xterm.js globals must exist before the wasm app starts. -->
+    <script src="/vendor/xterm/xterm.js"></script>
+    <script src="/vendor/xterm/addon-fit.js"></script>
+
+    <link data-trunk rel="rust" data-wasm-opt="z">
+  </head>
+  <body></body>
+</html>

@@ -1,0 +1,68 @@
+# Tests and lints every push to main, every pull request, and every
+# deploy (deploy.yml calls this workflow before deploying).
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_call:
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+          components: clippy, rustfmt
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Install tmux
+        run: sudo apt-get update && sudo apt-get install -y tmux
+
+      - name: Format
+        run: cargo fmt --all --check
+
+      - name: Unit and contract tests (proto, service, worker)
+        run: cargo test --workspace --exclude anila-frontend --exclude anila-e2e
+
+      - name: Harness and benchmark tests
+        run: >
+          cargo test -p anila-e2e
+          --test harness_proxy --test harness_probe --test proxy_bandwidth
+          --test proxy_latency --test bench
+
+      - name: Clippy (native)
+        run: cargo clippy --workspace --all-targets --exclude anila-frontend -- -D warnings
+
+      - name: Clippy (wasm32 worker and frontend)
+        run: cargo clippy -p anila-worker -p anila-frontend --target wasm32-unknown-unknown -- -D warnings
+
+      - name: Deployment configuration and installer guards
+        run: python3 -m unittest discover -s scripts -p 'test_*.py'
+
+      - name: Service worker tests
+        run: node --test frontend/tests/sw.test.cjs
+
+      - name: Install the Worker build tool
+        run: cargo install worker-build --version 0.8.7 --locked
+
+      - name: Passkey-only integration and persistence
+        run: >
+          cargo test -p anila-e2e --locked
+          --test passkey_only --test upgrade --test tenancy --test functional
+          -- --nocapture --test-threads=1

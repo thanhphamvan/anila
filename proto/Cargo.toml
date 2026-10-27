@@ -1,0 +1,22 @@
+[package]
+name = "anila-proto"
+description = "Wire contract shared by the service, the worker and the frontend"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+publish.workspace = true
+
+[features]
+zstd-encode = ["dep:zstd"]
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+miniz_oxide.workspace = true
+ruzstd = "0.8"
+zstd = { version = "0.13", optional = true }
+
+[dev-dependencies]
+proptest.workspace = true

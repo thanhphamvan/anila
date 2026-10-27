@@ -1,0 +1,2 @@
+{"profile":"train","codec":"deflate_stream","echo_p50_ms":418.199459,"echo_p95_ms":420.77166700000004,"echo_max_ms":422.1415,"throughput_ms":1376.960625,"throughput_down_bytes":45901,"resume_ms":1034.9238329999998,"git_commit":"8d09b27","timestamp":1792620282,"ping_ms":500,"dead_ms":2000}
+{"profile":"train","codec":"none","echo_p50_ms":418.65166700000003,"echo_p95_ms":3673.980958,"echo_max_ms":4274.682417,"throughput_ms":6362.473208,"throughput_down_bytes":205445,"resume_ms":1041.8312919999998,"git_commit":"8d09b27","timestamp":1792620311,"ping_ms":500,"dead_ms":2000}

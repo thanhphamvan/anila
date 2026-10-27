@@ -1,0 +1,32 @@
+[
+  { "name": "hello", "kind": "hop", "frame": { "t": "hello", "proto": 1, "tab": 305419896 } },
+  { "name": "welcome to browser", "kind": "hop", "frame": { "t": "welcome", "proto": 1, "host": "my-mac", "agent": { "online": true, "since": 1792585534, "proto": 1, "codecs": ["none", "zstd_stream"] } } },
+  { "name": "welcome to service", "kind": "hop", "frame": { "t": "welcome", "proto": 1 } },
+  { "name": "status offline", "kind": "hop", "frame": { "t": "status", "online": false, "since": 1792585600, "codecs": [] } },
+  { "name": "challenge", "kind": "hop", "frame": { "t": "challenge", "nonce": "q1Yb2h0aGlzIGlzIDMyIHJhbmRvbSBieXRlcyEhIQ" } },
+  { "name": "auth", "kind": "hop", "frame": { "t": "auth", "proto": 1, "host": "my-mac", "ts": 1792585534, "sig": "c2ln", "codecs": ["none", "lz4", "zstd_stream"] } },
+  { "name": "auth with watch", "kind": "hop", "frame": { "t": "auth", "proto": 1, "host": "h0123456789abcde", "ts": 1792585534, "sig": "c2ln", "codecs": ["none", "zstd_stream"], "watch": true } },
+  { "name": "watch on", "kind": "hop", "frame": { "t": "watch", "on": true } },
+  { "name": "watch off", "kind": "hop", "frame": { "t": "watch", "on": false } },
+  { "name": "tab_gone", "kind": "hop", "frame": { "t": "tab_gone", "tab": 305419896 } },
+  { "name": "ping", "kind": "hop", "frame": { "t": "ping" } },
+  { "name": "pong", "kind": "hop", "frame": { "t": "pong" } },
+  { "name": "heartbeat", "kind": "hop", "frame": { "t": "heartbeat" } },
+  { "name": "room error", "kind": "hop", "frame": { "t": "error", "code": "unauthorized", "msg": "session expired" } },
+
+  { "name": "list", "kind": "to_agent", "frame": { "t": "list", "tab": 305419896, "req": 1 } },
+  { "name": "open existing", "kind": "to_agent", "frame": { "t": "open", "tab": 305419896, "ch": 1, "req": 2, "session": "claude", "cols": 120, "rows": 40, "codec": "none" } },
+  { "name": "open create", "kind": "to_agent", "frame": { "t": "open", "tab": 305419896, "ch": 2, "req": 3, "session": "notes", "create": { "preset": "shell" }, "cols": 80, "rows": 24, "codec": "zstd_stream" } },
+  { "name": "resume", "kind": "to_agent", "frame": { "t": "resume", "tab": 305419896, "ch": 1, "session": "claude", "epoch": 2864434397, "from": 1042, "cols": 120, "rows": 40, "codec": "none" } },
+  { "name": "ack", "kind": "to_agent", "frame": { "t": "ack", "tab": 305419896, "ch": 1, "epoch": 2864434397, "off": 65536 } },
+  { "name": "resize", "kind": "to_agent", "frame": { "t": "resize", "tab": 305419896, "ch": 1, "cols": 100, "rows": 30 } },
+  { "name": "close", "kind": "to_agent", "frame": { "t": "close", "tab": 305419896, "ch": 1 } },
+
+  { "name": "sessions", "kind": "to_browser", "frame": { "t": "sessions", "tab": 305419896, "req": 1, "items": [ { "name": "claude", "windows": 3, "attached": 1, "activity": 1792585500, "cmd": "claude" }, { "name": "notes", "windows": 1, "attached": 0, "activity": 1792581900, "cmd": "vim" } ], "presets": [ { "id": "shell", "label": "Shell" }, { "id": "claude", "label": "Claude Code in ~/code" } ] } },
+  { "name": "opened", "kind": "to_browser", "frame": { "t": "opened", "tab": 305419896, "ch": 1, "req": 2, "epoch": 2864434397 } },
+  { "name": "resumed", "kind": "to_browser", "frame": { "t": "resumed", "tab": 305419896, "ch": 1, "epoch": 2864434397, "from": 1042, "in_acked": 17 } },
+  { "name": "reset", "kind": "to_browser", "frame": { "t": "reset", "tab": 305419896, "ch": 1, "epoch": 19088743 } },
+  { "name": "in_ack", "kind": "to_browser", "frame": { "t": "in_ack", "tab": 305419896, "ch": 1, "id": 18 } },
+  { "name": "exited", "kind": "to_browser", "frame": { "t": "exited", "tab": 305419896, "ch": 1, "reason": "session ended" } },
+  { "name": "service error", "kind": "to_browser", "frame": { "t": "error", "tab": 305419896, "req": 3, "code": "exists", "msg": "session notes already exists" } }
+]

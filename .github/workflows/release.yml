@@ -1,0 +1,254 @@
+# Builds anila-service for macOS and Linux and, for a version tag, publishes
+# a GitHub release with SHA-256 checksums, then downloads the release again
+# and checks every archive against them.
+#
+#   1. Bump `version` under [workspace.package] in Cargo.toml and commit.
+#   2. git tag v0.2.0 && git push origin v0.2.0
+#
+# The tag must match the workspace version. A tag with a hyphen (v0.2.0-rc.1)
+# makes a pre-release. Running the workflow by hand from the Actions tab
+# builds and checks the archives without publishing anything; they are kept
+# as workflow artifacts for a week.
+#
+# Each archive holds the binary, README.md, service.example.toml and
+# claude-notify.sh. SHA256SUMS lists every archive; scripts/verify-release.sh
+# downloads one and checks it before unpacking.
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  CARGO_TERM_COLOR: always
+  ANILA_REPO: ${{ github.repository }}
+
+jobs:
+  version:
+    runs-on: ubuntu-24.04
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+      publish: ${{ steps.v.outputs.publish }}
+      prerelease: ${{ steps.v.outputs.prerelease }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Check the tag against Cargo.toml
+        id: v
+        env:
+          REF_TYPE: ${{ github.ref_type }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          version=$(sed -n '/^\[workspace.package\]/,/^\[/s/^version = "\(.*\)"/\1/p' Cargo.toml)
+          [ -n "$version" ] || { echo "::error::no version under [workspace.package] in Cargo.toml"; exit 1; }
+          publish=false
+          if [ "$REF_TYPE" = tag ]; then
+            if [ "$REF_NAME" != "v$version" ]; then
+              echo "::error::tag $REF_NAME does not match the workspace version $version (expected v$version)"
+              exit 1
+            fi
+            publish=true
+          fi
+          case "$version" in *-*) prerelease=true ;; *) prerelease=false ;; esac
+          {
+            echo "version=$version"
+            echo "publish=$publish"
+            echo "prerelease=$prerelease"
+          } >> "$GITHUB_OUTPUT"
+          echo "Version $version, publish $publish, pre-release $prerelease"
+
+  test:
+    uses: ./.github/workflows/ci.yml
+
+  build:
+    needs: version
+    name: build (${{ matrix.target }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: aarch64-apple-darwin
+            os: macos-15
+            arch: arm64
+            native: true
+          - target: x86_64-apple-darwin
+            os: macos-15
+            arch: x86_64
+            native: false
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-24.04
+            arch: x86-64
+            native: true
+          - target: aarch64-unknown-linux-gnu
+            os: ubuntu-24.04
+            arch: aarch64
+            native: false
+    env:
+      TARGET: ${{ matrix.target }}
+      NAME: anila-service-${{ needs.version.outputs.version }}-${{ matrix.target }}
+      # Only used by the aarch64 Linux cross build (ring and zstd compile C).
+      CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
+      CC_aarch64_unknown_linux_gnu: aarch64-linux-gnu-gcc
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.target }}
+
+      - name: Install the aarch64 cross compiler
+        if: matrix.target == 'aarch64-unknown-linux-gnu'
+        run: sudo apt-get update && sudo apt-get install -y gcc-aarch64-linux-gnu
+
+      - name: Build
+        run: cargo build --release --locked -p anila-service --target "$TARGET"
+
+      - name: Check the binary
+        env:
+          ARCH: ${{ matrix.arch }}
+          NATIVE: ${{ matrix.native }}
+          VERSION: ${{ needs.version.outputs.version }}
+        run: |
+          bin="target/$TARGET/release/anila-service"
+          file "$bin"
+          file "$bin" | grep -q "$ARCH" || { echo "::error::$bin is not a $ARCH binary"; exit 1; }
+          if [ "$NATIVE" = true ]; then
+            out=$("$bin" --version)
+            echo "$out"
+            [ "$out" = "anila-service $VERSION" ] || { echo "::error::unexpected --version output: $out"; exit 1; }
+          fi
+
+      - name: Collect third-party notices
+        run: |
+          cargo fetch --locked
+          python3 scripts/third_party_notices.py --target "$TARGET"
+
+      - name: Package
+        run: |
+          mkdir -p "dist/$NAME"
+          cp "target/$TARGET/release/anila-service" README.md \
+             service/service.example.toml service/hooks/claude-notify.sh LICENSE THIRD_PARTY_NOTICES.md THIRD_PARTY_LICENSES.txt "dist/$NAME/"
+          tar -C dist -czf "dist/$NAME.tar.gz" "$NAME"
+          (cd dist && shasum -a 256 "$NAME.tar.gz" | tee "$NAME.tar.gz.sha256")
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist-${{ matrix.target }}
+          path: |
+            dist/*.tar.gz
+            dist/*.sha256
+          if-no-files-found: error
+          retention-days: 7
+
+  release:
+    needs: [version, test, build]
+    if: needs.version.outputs.publish == 'true'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: dist-*
+          path: dist
+          merge-multiple: true
+
+      - name: Check every archive and write SHA256SUMS
+        working-directory: dist
+        run: |
+          set -- ./*.tar.gz
+          [ $# -eq 4 ] || { echo "::error::expected 4 archives, found $#"; ls -l; exit 1; }
+          for f in ./*.tar.gz.sha256; do sha256sum -c "$f"; done
+          cat ./*.tar.gz.sha256 | sort -k2 > SHA256SUMS
+          sha256sum -c SHA256SUMS
+          cat SHA256SUMS
+
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+          PRERELEASE: ${{ needs.version.outputs.prerelease }}
+        run: |
+          flags=""
+          [ "$PRERELEASE" = true ] && flags="--prerelease"
+          {
+            echo "## Verify your download"
+            echo
+            echo "Every archive is listed in \`SHA256SUMS\`. Check one before unpacking it:"
+            echo
+            echo '```sh'
+            echo "gh release download $TAG --repo $GITHUB_REPOSITORY --pattern 'anila-service-*-aarch64-apple-darwin.tar.gz' --pattern SHA256SUMS"
+            echo "shasum -a 256 -c SHA256SUMS --ignore-missing"
+            echo '```'
+            echo
+            echo "or run \`scripts/verify-release.sh $TAG\` from a checkout."
+            echo
+            echo '```'
+            cat dist/SHA256SUMS
+            echo '```'
+          } > notes.md
+          gh release create "$TAG" dist/*.tar.gz dist/*.tar.gz.sha256 dist/SHA256SUMS \
+            --repo "$GITHUB_REPOSITORY" --verify-tag $flags \
+            --title "anila $TAG" --notes-file notes.md --generate-notes
+
+  verify:
+    needs: [version, release]
+    name: verify (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-15]
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Download every asset and check SHA256SUMS
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          mkdir all && cd all
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY"
+          shasum -a 256 -c SHA256SUMS
+          set -- ./*.tar.gz
+          [ "$(wc -l < SHA256SUMS)" -eq $# ] || { echo "::error::SHA256SUMS and the archives disagree"; exit 1; }
+
+      - name: Install this machine's build with the verify script
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+          VERSION: ${{ needs.version.outputs.version }}
+        run: |
+          mkdir mine
+          OUT_DIR=mine scripts/verify-release.sh "$TAG"
+          set -- mine/anila-service-*/anila-service
+          out=$("$1" --version)
+          echo "$out"
+          [ "$out" = "anila-service $VERSION" ] || { echo "::error::unexpected --version output: $out"; exit 1; }
+
+      - name: A tampered archive fails the checksum
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          mkdir bad && cp all/SHA256SUMS bad/
+          set -- all/*.tar.gz
+          archive=$(basename "$1")
+          cp "all/$archive" bad/ && printf 'x' >> "bad/$archive"
+          if (cd bad && shasum -a 256 -c SHA256SUMS --ignore-missing); then
+            echo "::error::a tampered archive passed the checksum"; exit 1
+          fi
+          echo "tampered archive rejected"
