@@ -66,3 +66,12 @@ jobs:
           cargo test -p anila-e2e --locked
           --test passkey_only --test upgrade --test tenancy --test functional
           -- --nocapture --test-threads=1
+
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: trunk@0.22.0
+
+      - name: Terminal clipboard regression
+        env:
+          ANILA_BROWSER: /usr/bin/google-chrome
+        run: cargo test -p anila-e2e --locked --test clipboard -- --nocapture

@@ -8,6 +8,8 @@ mod account;
 mod api;
 #[path = "shared/app.rs"]
 mod app;
+#[path = "shared/clipboard.rs"]
+mod clipboard;
 #[path = "shared/conn.rs"]
 mod conn;
 mod edition;

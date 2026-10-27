@@ -296,16 +296,26 @@ pub fn Notifications() -> impl IntoView {
     }
 }
 
+/// Start copying synchronously inside the trusted click/keydown handler.
+/// Some browsers require user activation when writeText is invoked.
+pub(crate) fn start_copy(text: &str) -> Result<Promise, String> {
+    let navigator = get(&js_sys::global(), "navigator")?;
+    let clipboard = get(&navigator, "clipboard")?;
+    if clipboard.is_null() || clipboard.is_undefined() {
+        return Err("Clipboard copying is unavailable; use HTTPS and a supported browser.".into());
+    }
+    call(&clipboard, "writeText", &[text.into()])?
+        .dyn_into::<Promise>()
+        .map_err(api::error)
+}
+
 /// Copy text when the browser exposes the clipboard API.
 pub fn copy(text: String) {
-    spawn_local(async move {
-        let copy = async {
-            let navigator = get(&js_sys::global(), "navigator")?;
-            let clipboard = get(&navigator, "clipboard")?;
-            resolve(call(&clipboard, "writeText", &[text.into()])?).await
-        };
-        let _ = copy.await;
-    });
+    if let Ok(promise) = start_copy(&text) {
+        spawn_local(async move {
+            let _ = JsFuture::from(promise).await;
+        });
+    }
 }
 
 /// The origin used in the pairing command.

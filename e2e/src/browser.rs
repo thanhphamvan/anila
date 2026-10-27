@@ -408,6 +408,50 @@ impl Page {
         Ok(())
     }
 
+    /// Drag across rendered cells using real pointer events (modifiers use CDP bits).
+    pub async fn drag(&self, from: (f64, f64), to: (f64, f64), modifiers: u8) -> Result<()> {
+        self.command(
+            "Input.dispatchMouseEvent",
+            json!({"type":"mouseMoved", "x":from.0, "y":from.1, "modifiers":modifiers}),
+        )
+        .await?;
+        self.command("Input.dispatchMouseEvent", json!({"type":"mousePressed", "x":from.0, "y":from.1, "button":"left", "buttons":1, "clickCount":1, "modifiers":modifiers})).await?;
+        self.command("Input.dispatchMouseEvent", json!({"type":"mouseMoved", "x":to.0, "y":to.1, "button":"left", "buttons":1, "modifiers":modifiers})).await?;
+        self.command("Input.dispatchMouseEvent", json!({"type":"mouseReleased", "x":to.0, "y":to.1, "button":"left", "clickCount":1, "modifiers":modifiers})).await?;
+        Ok(())
+    }
+
+    /// Dispatch a letter shortcut with CDP modifier bits: Ctrl=2, Meta=4, Shift=8.
+    pub async fn shortcut(&self, letter: char, modifiers: u8) -> Result<()> {
+        anyhow::ensure!(
+            letter.is_ascii_alphabetic(),
+            "shortcut must be an ASCII letter"
+        );
+        let upper = letter.to_ascii_uppercase();
+        let key = if modifiers & 8 != 0 {
+            upper
+        } else {
+            letter.to_ascii_lowercase()
+        };
+        for kind in ["keyDown", "keyUp"] {
+            self.command("Input.dispatchKeyEvent", json!({"type":kind, "key":key.to_string(), "code":format!("Key{upper}"), "windowsVirtualKeyCode":u32::from(upper), "modifiers":modifiers})).await?;
+        }
+        Ok(())
+    }
+
+    /// Use a generated local test session; never supply a production cookie.
+    pub async fn set_test_session(&self, origin: &str, value: &str) -> Result<()> {
+        self.command("Network.setCookie", json!({"url":origin, "name":"__Host-term", "value":value, "secure":true, "httpOnly":true, "path":"/", "sameSite":"Strict"})).await?;
+        Ok(())
+    }
+
+    /// Permit clipboard assertions on this isolated test origin.
+    pub async fn grant_clipboard(&self, origin: &str) -> Result<()> {
+        self.connection.command(None, "Browser.grantPermissions", json!({"origin":origin, "permissions":["clipboardReadWrite", "clipboardSanitizedWrite"]})).await?;
+        self.command("Page.bringToFront", json!({})).await?;
+        Ok(())
+    }
+
     /// Focuses and selects an input or textarea, then replaces its contents with user input.
     pub async fn fill(&self, css: &str, text: &str) -> Result<()> {
         self.eval(&format!("(() => {{ const e=document.querySelector({}); if (!(e instanceof HTMLInputElement || e instanceof HTMLTextAreaElement)) throw new Error('expected input or textarea'); e.focus(); e.select(); }})()", json!(css))).await?;

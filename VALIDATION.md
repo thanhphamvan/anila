@@ -70,3 +70,19 @@ consumer tests cover live shared edits, the preserved private adapter, an
 independent CI checkout, the local HTML build context and source-revision
 validation. GitHub workflow changes in the consumer passed actionlint 1.7.7.
 No live deployment or remote workflow run was performed.
+
+## Terminal clipboard fix
+
+The browser regression selects rendered terminal text with real pointer
+events and reads the browser clipboard. With the old frontend, Ctrl+Shift+C
+left the clipboard sentinel unchanged despite a visible terminal selection.
+With the fix it passes Ctrl+Shift+C, Ctrl+C with selection, Cmd+C, Shift-drag
+selection while tmux mouse reporting is active, clipboard-denial feedback,
+Ctrl+Shift+C with no selection, native Ctrl+Shift+V paste, and Ctrl+C with no
+selection interrupting the isolated cat process. All waits poll conditions.
+
+Both frontend variants pass wasm clippy with warnings denied; the native e2e
+harness clippy, formatting, service-worker tests and workflow lint also pass.
+The new browser test is included in public CI. Vendored xterm is unchanged.
+The private consumer derives the additional KeyboardEvent feature from the
+shared manifest. No running deployment was updated during this fix.

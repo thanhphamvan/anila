@@ -22,7 +22,7 @@ wasm-bindgen-futures = "0.4"
 base64.workspace = true
 web-sys = { workspace = true, features = [
   "BinaryType", "CloseEvent", "Credential", "CredentialsContainer", "Crypto", "Document",
-  "ErrorEvent", "Event", "HtmlElement", "HtmlDivElement", "MessageEvent", "Navigator",
+  "ErrorEvent", "Event", "HtmlElement", "HtmlDivElement", "KeyboardEvent", "MessageEvent", "Navigator",
   "PublicKeyCredential", "Request", "RequestCredentials", "RequestInit", "Response",
   "Storage", "VisibilityState", "WebSocket", "Window",
 ] }

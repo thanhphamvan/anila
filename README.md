@@ -111,6 +111,13 @@ IdP-era auth store (schema 3) and unknown newer schemas. Use a new Worker
 name and Durable Object namespaces; see the deployment guide before moving
 an existing installation. The terminal protocol version has not changed.
 
+## Copy terminal text
+
+Drag to select terminal output, then press **Ctrl+Shift+C** (Linux/Windows)
+or **Cmd+C** (macOS). **Ctrl+C** also copies when text is selected; with no
+selection it still interrupts the running command. If tmux or a terminal
+application captures the mouse, hold **Shift** while dragging to select text.
+
 ## Validation and benchmarks
 
 ```sh

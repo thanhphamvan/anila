@@ -39,6 +39,15 @@ extern "C" {
     /// Called with each chunk the user types.
     #[wasm_bindgen(method, js_name = onData)]
     pub fn on_data(this: &Terminal, callback: &Closure<dyn FnMut(String)>) -> JsValue;
+
+    #[wasm_bindgen(method, js_name = getSelection)]
+    pub fn get_selection(this: &Terminal) -> String;
+
+    #[wasm_bindgen(method, js_name = attachCustomKeyEventHandler)]
+    pub fn attach_key_handler(
+        this: &Terminal,
+        callback: &Closure<dyn FnMut(web_sys::KeyboardEvent) -> bool>,
+    );
 }
 
 #[wasm_bindgen]
