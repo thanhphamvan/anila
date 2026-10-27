@@ -309,6 +309,46 @@ pub(crate) fn start_copy(text: &str) -> Result<Promise, String> {
         .map_err(api::error)
 }
 
+/// Native copy for direct user actions when async clipboard writes are denied.
+/// Restore focus and remove the temporary editor even if copying fails.
+pub(crate) fn native_copy(text: &str) -> Result<bool, String> {
+    let document = get(&js_sys::global(), "document")?;
+    let active = get(&document, "activeElement")?;
+    let editor = call(&document, "createElement", &["textarea".into()])?;
+    Reflect::set(&editor, &"value".into(), &text.into()).map_err(api::error)?;
+    call(&editor, "setAttribute", &["readonly".into(), "".into()])?;
+    call(
+        &editor,
+        "setAttribute",
+        &[
+            "style".into(),
+            "position:fixed;top:0;left:0;width:1px;height:1px;opacity:0;font-size:16px".into(),
+        ],
+    )?;
+    call(
+        &get(&document, "body")?,
+        "appendChild",
+        std::slice::from_ref(&editor),
+    )?;
+    let focus_options: JsValue = Object::new().into();
+    let _ = Reflect::set(&focus_options, &"preventScroll".into(), &true.into());
+    let result = (|| {
+        call(&editor, "focus", std::slice::from_ref(&focus_options))?;
+        call(&editor, "select", &[])?;
+        call(
+            &editor,
+            "setSelectionRange",
+            &[0.into(), (text.encode_utf16().count() as f64).into()],
+        )?;
+        Ok(call(&document, "execCommand", &["copy".into()])?
+            .as_bool()
+            .unwrap_or(false))
+    })();
+    let _ = call(&editor, "remove", &[]);
+    let _ = call(&active, "focus", &[focus_options]);
+    result
+}
+
 /// Copy text when the browser exposes the clipboard API.
 pub fn copy(text: String) {
     if let Ok(promise) = start_copy(&text) {

@@ -2,10 +2,31 @@
 
 use crate::{pwa, xterm::Terminal};
 use leptos::prelude::*;
+use std::{cell::RefCell, rc::Rc};
 use wasm_bindgen::{JsCast, prelude::*};
 use wasm_bindgen_futures::{JsFuture, spawn_local};
 
-fn copy(text: &str, banner: RwSignal<String>) {
+/// Retain application copies per terminal so a direct click can retry a
+/// clipboard write rejected for lacking browser user activation.
+#[derive(Clone, Default)]
+pub(crate) struct CopyBuffer(Rc<RefCell<Option<String>>>);
+
+impl CopyBuffer {
+    pub(crate) fn text(&self, term: &Terminal) -> Option<String> {
+        let selected = term.get_selection();
+        if selected.is_empty() {
+            self.0.borrow().clone()
+        } else {
+            Some(selected)
+        }
+    }
+
+    pub(crate) fn clear(&self) {
+        self.0.borrow_mut().take();
+    }
+}
+
+pub(crate) fn copy(text: &str, banner: RwSignal<String>) {
     if text.is_empty() {
         return;
     }
@@ -13,12 +34,36 @@ fn copy(text: &str, banner: RwSignal<String>) {
     match pwa::start_copy(text) {
         Ok(promise) => spawn_local(async move {
             if JsFuture::from(promise).await.is_err() {
-                banner.try_set("Could not copy terminal text. Allow clipboard access in your browser and try again.".into());
+                banner.try_set("Could not copy terminal text. Tap Copy to retry. Allow clipboard access in your browser and try again.".into());
+            } else {
+                clear_error(banner);
             }
         }),
         Err(error) => {
             banner.try_set(format!("Could not copy terminal text: {error}"));
         }
+    }
+}
+
+fn clear_error(banner: RwSignal<String>) {
+    banner.try_update(|message| {
+        if message.starts_with("Could not copy terminal text")
+            || message.starts_with("Select terminal text first")
+        {
+            message.clear();
+        }
+    });
+}
+
+/// Run directly in a trusted click or keyboard event, before any await.
+pub(crate) fn copy_explicit(text: &str, banner: RwSignal<String>) {
+    if text.is_empty() {
+        return;
+    }
+    if pwa::native_copy(text).unwrap_or(false) {
+        clear_error(banner);
+    } else {
+        copy(text, banner);
     }
 }
 
@@ -46,6 +91,7 @@ pub(crate) fn install_osc52(
     term: &Terminal,
     container: &web_sys::HtmlDivElement,
     banner: RwSignal<String>,
+    buffer: CopyBuffer,
 ) -> Closure<dyn FnMut(String) -> bool> {
     let container = container.clone();
     let handler = Closure::new(move |data: String| {
@@ -53,6 +99,7 @@ pub(crate) fn install_osc52(
             && !container.hidden()
             && let Some(text) = crate::clipboard_payload::decode(&data)
         {
+            *buffer.0.borrow_mut() = Some(text.clone());
             copy(&text, banner);
         }
         true
@@ -65,6 +112,7 @@ pub(crate) fn install_osc52(
 pub(crate) fn install(
     term: &Terminal,
     banner: RwSignal<String>,
+    buffer: CopyBuffer,
 ) -> Closure<dyn FnMut(web_sys::KeyboardEvent) -> bool> {
     let target: Terminal = JsValue::from(term).unchecked_into();
     let handler = Closure::new(move |event: web_sys::KeyboardEvent| {
@@ -76,7 +124,10 @@ pub(crate) fn install(
         if !control && !command {
             return true;
         }
-        let text = target.get_selection();
+        let mut text = target.get_selection();
+        if text.is_empty() && (command || (control && event.shift_key())) {
+            text = buffer.text(&target).unwrap_or_default();
+        }
         if text.is_empty() && !(control && event.shift_key()) {
             // In particular, bare Ctrl+C remains a terminal interrupt.
             return true;
@@ -84,7 +135,7 @@ pub(crate) fn install(
         // Stop terminal input and browser shortcuts such as opening DevTools.
         event.prevent_default();
         if event.type_() == "keydown" && !text.is_empty() {
-            copy(&text, banner);
+            copy_explicit(&text, banner);
         }
         false
     });

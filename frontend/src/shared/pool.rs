@@ -27,6 +27,7 @@ struct Entry {
     _on_key: Closure<dyn FnMut(web_sys::KeyboardEvent) -> bool>,
     _on_selection: Closure<dyn FnMut()>,
     _on_osc52: Closure<dyn FnMut(String) -> bool>,
+    clipboard: crate::clipboard::CopyBuffer,
     ch: Ch,
     req: Req,
     size: (u16, u16),
@@ -112,9 +113,11 @@ impl Pool {
             }
             term.load_addon(&fit);
             term.open(&div);
-            let on_key = crate::clipboard::install(&term, model.banner);
+            let clipboard = crate::clipboard::CopyBuffer::default();
+            let on_key = crate::clipboard::install(&term, model.banner, clipboard.clone());
             let on_selection = crate::clipboard::install_selection(&term, &div, model.banner);
-            let on_osc52 = crate::clipboard::install_osc52(&term, &div, model.banner);
+            let on_osc52 =
+                crate::clipboard::install_osc52(&term, &div, model.banner, clipboard.clone());
             fit.fit();
             let size = (term.cols(), term.rows());
             let (ch, req) = conn.open(session.clone(), create, size.0, size.1);
@@ -130,6 +133,7 @@ impl Pool {
                 _on_key: on_key,
                 _on_selection: on_selection,
                 _on_osc52: on_osc52,
+                clipboard,
                 ch,
                 req,
                 size,
@@ -163,6 +167,7 @@ impl Pool {
                     continue;
                 }
                 Event::Reset { ch } if *ch == entry.ch => {
+                    entry.clipboard.clear();
                     entry.term.reset();
                     entry.banner.clear();
                 }
@@ -220,6 +225,13 @@ impl Pool {
     /// The visible channel used by the key row.
     pub(crate) fn shown_ch(&self) -> Option<Ch> {
         self.entries.iter().find(|e| !e.div.hidden()).map(|e| e.ch)
+    }
+
+    pub(crate) fn shown_copy_text(&self) -> Option<String> {
+        self.entries
+            .iter()
+            .find(|entry| !entry.div.hidden() && entry.div.is_connected())
+            .and_then(|entry| entry.clipboard.text(&entry.term))
     }
 
     /// Whether this session still has an attached terminal.

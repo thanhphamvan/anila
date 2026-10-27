@@ -121,13 +121,25 @@ available. Long machine and session lists scroll within the screen.
 ## Copy terminal text
 
 Drag to select terminal output; the selection is copied automatically when
-you release the mouse. You can also press **Ctrl+Shift+C** (Linux/Windows)
+you release the mouse. Tap **Copy** in the terminal key row to copy explicitly
+or retry an application copy blocked by browser permissions. You can also press **Ctrl+Shift+C** (Linux/Windows)
 or **Cmd+C** (macOS). **Ctrl+C** also copies when text is selected; with no
 selection it still interrupts the running command. If tmux or a terminal
 application captures the mouse, hold **Shift** while dragging to select text.
 Application copies (including Codex and tmux) can also reach the browser through
 OSC 52. Allow clipboard access for the site if your browser prompts. Clipboard
 read requests from terminal applications are ignored.
+
+If an application reports a copy but the browser receives nothing, check
+the host's tmux configuration. Its default `set-clipboard external` forwards
+tmux's own copies but blocks clipboard sequences emitted by applications.
+To forward those application copies, run `tmux set -s set-clipboard on` in
+that tmux server. Applications using tmux passthrough may also need
+`tmux set -g allow-passthrough on` (tmux 3.3 or newer). These host settings
+are independent of frontend deployment.
+
+The key row includes **Page Up** and **Page Down** for terminal applications
+and pagers. On small screens, swipe the key row horizontally to reach them.
 
 ## Validation and benchmarks
 

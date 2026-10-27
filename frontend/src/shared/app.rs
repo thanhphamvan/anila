@@ -736,6 +736,8 @@ const KEYS: &[(&str, &str)] = &[
     ("↑", "\x1b[A"),
     ("↓", "\x1b[B"),
     ("→", "\x1b[C"),
+    ("Page Up", "\x1b[5~"),
+    ("Page Down", "\x1b[6~"),
 ];
 
 #[component]
@@ -816,8 +818,18 @@ fn TerminalView(model: Model, name: SessionName, create: Option<Create>) -> impl
             <p class="muted small" role="status" hidden=move || !paused.get()>"Input paused while reconnecting"</p>
             <div class="terms-mount" node_ref=host></div>
             <nav class="keys" aria-label="Terminal keys">
+                <button aria-label="Copy terminal text" on:click=move |_| {
+                    if let Some(id) = machine.get_value() {
+                        if let Some(text) = model.with_pool(&id, |pool| pool.shown_copy_text()).flatten() {
+                            crate::clipboard::copy_explicit(&text, banner);
+                        } else {
+                            banner.set("Select terminal text first. Hold Shift while dragging if the application captures the mouse.".into());
+                        }
+                        model.focus(&id);
+                    }
+                }>"Copy"</button>
                 <button class:primary=move || ctrl.get() aria-pressed=move || ctrl.get().to_string() on:click=move |_| { ctrl.update(|v| *v = !*v); if let Some(id) = machine.get_value() { model.focus(&id); } }>"Ctrl"</button>
-                {KEYS.iter().map(|(label, bytes)| view! { <button on:click=move |_| send(bytes)>{*label}</button> }).collect_view()}
+                {KEYS.iter().map(|(label, bytes)| view! { <button aria-label=*label on:click=move |_| send(bytes)>{*label}</button> }).collect_view()}
             </nav>
         </section>
     }

@@ -18,7 +18,7 @@ fn mobile_terminal_and_forms_fit_the_screen() {
             <div class="tab active"><button class="tab-open"><span class="tab-name">a-very-long-terminal-session-name</span></button><button class="tab-close">×</button></div>
             <div class="tab"><button class="tab-open">another session</button></div></div><button class="tab-new">+</button></nav>
             <div class="terms-mount"><div class="terms"><div class="term" id="terminal"></div></div></div>
-            <nav class="keys"><button>Ctrl</button><button>Esc</button><button>Tab</button><button>↑</button><button>↓</button><button>←</button><button>→</button><button>Enter</button></nav>
+            <nav class="keys"><button>Copy</button><button>Ctrl</button><button>Esc</button><button>Tab</button><button>↑</button><button>↓</button><button>←</button><button>→</button><button>Page Up</button><button>Page Down</button></nav>
             </section></main>"#);
         page.eval(&format!("document.open();document.write({});document.close()", json!(html))).await.unwrap();
         page.emulate_phone().await.unwrap();
@@ -41,6 +41,7 @@ fn mobile_terminal_and_forms_fit_the_screen() {
             if mobile { assert!(layout["home"].as_f64().unwrap() >= 44.0, "{layout}"); }
         }
         page.set_viewport(320, 480, true).await.unwrap();
+        page.wait_for("Math.abs(document.querySelector('.app').getBoundingClientRect().height - 480) <= 1", Duration::from_secs(5)).await.unwrap();
         page.eval(r#"document.querySelector('.app').innerHTML = '<section class="sessions"><div class="bar"><span class="host">a-very-long-hostname</span><button>Account settings</button></div><button class="row"><span class="name">' + 'long-session-name-'.repeat(20) + '</span><span class="badge">Shared session</span><span class="meta">' + 'long-description-'.repeat(20) + '</span></button><form><label>Session name<input></label><button>Create session</button></form></section>'"#).await.unwrap();
         let form = page.eval("({overflow:document.documentElement.scrollWidth > innerWidth, font:getComputedStyle(document.querySelector('input')).fontSize, scroll:document.querySelector('.sessions').scrollHeight > document.querySelector('.sessions').clientHeight})").await.unwrap();
         assert_eq!(form["overflow"], false, "{form}");

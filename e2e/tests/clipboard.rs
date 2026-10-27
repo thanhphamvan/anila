@@ -5,7 +5,9 @@ mod common;
 #[path = "../../frontend/src/shared/clipboard_payload.rs"]
 mod clipboard_payload;
 
-use std::{process::Command, time::Duration};
+use std::{io::Write, process::Command, time::Duration};
+
+use base64::Engine;
 
 use anila_e2e::{
     authn::SoftAuthenticator, browser::Browser, tmux::TmuxServer, util::workspace_root,
@@ -74,6 +76,9 @@ fn terminal_clipboard_shortcuts() {
                 page.eval("document.activeElement?.className").await,
                 page.text("section.terminal .error").await);
         }
+        page.eval("navigator.clipboard.writeText('before-copy-button')").await.unwrap();
+        page.click(".keys button[aria-label='Copy terminal text']").await.unwrap();
+        page.wait_for("navigator.clipboard.readText().then(text => text === 'copy-this-terminal-text')", Duration::from_secs(5)).await.expect("Copy button copies the terminal selection");
         page.eval("navigator.clipboard.writeText('keep-on-clear')").await.unwrap();
         page.click(".xterm-screen").await.unwrap();
         page.wait_for("document.querySelectorAll('.xterm-selection div').length === 0", Duration::from_secs(5)).await.expect("selection cleared before mouse mode");
@@ -93,8 +98,14 @@ fn terminal_clipboard_shortcuts() {
         page.eval("Object.defineProperty(navigator.clipboard, 'writeText', { configurable:true, value:() => Promise.reject(new DOMException('denied', 'NotAllowedError')) })").await.unwrap();
         page.drag((x1, y), (x2 - (x2 - x1) / 23.0, y), 8).await.unwrap();
         page.wait_for("document.querySelector('section.terminal .error[role=alert]')?.textContent.includes('Allow clipboard access')", Duration::from_secs(5)).await.expect("highlight copy denial is visible");
+        page.eval("document.execCommand = () => false").await.unwrap();
         page.shortcut('c', 10).await.unwrap();
         page.wait_for("document.querySelector('section.terminal .error[role=alert]')?.textContent.includes('Allow clipboard access')", Duration::from_secs(5)).await.expect("copy denial is shown without a passkey error");
+        page.eval("delete document.execCommand").await.unwrap();
+        page.click(".keys button[aria-label='Copy terminal text']").await.unwrap();
+        page.wait_for("!document.querySelector('section.terminal .error[role=alert]')", Duration::from_secs(5)).await.expect("native Copy succeeds while asynchronous clipboard writes are denied");
+        assert_eq!(page.eval("document.activeElement?.classList.contains('xterm-helper-textarea')").await.unwrap(), true, "Copy restores terminal focus");
+        assert_eq!(page.eval("document.querySelectorAll('body > textarea').length").await.unwrap(), 0, "temporary copy editor is removed");
         page.eval("delete navigator.clipboard.writeText").await.unwrap();
         tmux.cmd(&["set-option", "-g", "mouse", "off"]);
         page.wait_for("document.querySelector('.xterm.enable-mouse-events') === null", Duration::from_secs(5)).await.expect("tmux mouse reporting disabled");
@@ -108,11 +119,34 @@ fn terminal_clipboard_shortcuts() {
         page.press("Enter").await.unwrap();
         page.wait_for("document.querySelector('.xterm-rows').innerText.includes('paste-still-works')", Duration::from_secs(10)).await.expect("paste still reaches the terminal");
         assert!(tmux.capture("clipboard").contains("paste-still-works"));
+        page.click(".keys button[aria-label='Page Up']").await.unwrap();
+        page.click(".keys button[aria-label='Page Down']").await.unwrap();
+        page.press("Enter").await.unwrap();
+        assert!(anila_e2e::util::wait_until(Duration::from_secs(5), || tmux.capture("clipboard").contains("^[[5~^[[6~")), "Page Up/Down buttons deliver the terminal key sequences");
         // Codex forwards copies through tmux to attached clients as OSC 52.
         // Exercise the real tmux -> service -> worker -> xterm -> OS path.
         let unicode = "Codex selection — tiếng Việt 🦀\nline two";
         tmux.cmd(&["set-buffer", "-w", "-b", "e2e-clipboard", unicode]);
         page.wait_for(&format!("navigator.clipboard.readText().then(text => text === {})", serde_json::json!(unicode)), Duration::from_secs(5)).await.expect("tmux application copy reaches browser clipboard with Unicode intact");
+        // Application OSC 52 differs from tmux's own set-buffer -w: tmux's
+        // default 'external' forbids application copies. Enable it only on
+        // this isolated test server, then emit from its exact pane's PTY.
+        tmux.cmd(&["set-option", "-s", "set-clipboard", "on"]);
+        let tty = tmux.cmd(&["display-message", "-p", "-t", "=clipboard:", "#{pane_tty}"]);
+        let app_copy = "application OSC 52 — tiếng Việt";
+        let sequence = format!("\x1b]52;c;{}\x07", base64::engine::general_purpose::STANDARD.encode(app_copy));
+        std::fs::OpenOptions::new().write(true).open(tty.trim()).unwrap().write_all(sequence.as_bytes()).unwrap();
+        page.wait_for(&format!("navigator.clipboard.readText().then(text => text === {})", serde_json::json!(app_copy)), Duration::from_secs(5)).await.expect("OSC 52 emitted by an application reaches the browser through tmux");
+        // Simulate browsers that require a direct click rather than allowing
+        // clipboard writes while parsing asynchronously received terminal data.
+        page.eval("globalThis.realClipboardWrite = navigator.clipboard.writeText.bind(navigator.clipboard); Object.defineProperty(navigator.clipboard, 'writeText', {configurable:true, value:text => window.event?.isTrusted && window.event.type === 'click' ? realClipboardWrite(text) : Promise.reject(new DOMException('requires click', 'NotAllowedError'))})").await.unwrap();
+        let pending = "application copy awaiting user gesture — 🦀";
+        tmux.cmd(&["set-buffer", "-w", "-b", "e2e-clipboard", pending]);
+        page.wait_for("document.querySelector('section.terminal .error[role=alert]')?.textContent.includes('Tap Copy')", Duration::from_secs(5)).await.expect("blocked application copy offers a direct retry");
+        page.click(".keys button[aria-label='Copy terminal text']").await.unwrap();
+        page.wait_for(&format!("navigator.clipboard.readText().then(text => text === {})", serde_json::json!(pending)), Duration::from_secs(5)).await.expect("direct Copy click retries the retained application copy");
+        page.wait_for("!document.querySelector('section.terminal .error[role=alert]')", Duration::from_secs(5)).await.expect("successful retry clears the clipboard error");
+        page.eval("delete navigator.clipboard.writeText; delete globalThis.realClipboardWrite").await.unwrap();
         // With no selection Ctrl+C must reach cat, which exits its tmux session.
         page.shortcut('c', 2).await.unwrap();
         assert!(anila_e2e::util::wait_until(Duration::from_secs(10), || {
