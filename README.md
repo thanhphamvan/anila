@@ -111,6 +111,13 @@ IdP-era auth store (schema 3) and unknown newer schemas. Use a new Worker
 name and Durable Object namespaces; see the deployment guide before moving
 an existing installation. The terminal protocol version has not changed.
 
+## Mobile devices
+
+The web app adapts to phone and tablet screens in portrait or landscape.
+Terminal tabs and the extra key row scroll horizontally. Opening the on-screen
+keyboard resizes the terminal to keep the key row visible; pinch zoom remains
+available. Long machine and session lists scroll within the screen.
+
 ## Copy terminal text
 
 Drag to select terminal output; the selection is copied automatically when
@@ -130,7 +137,7 @@ cargo test --workspace --exclude anila-frontend --exclude anila-e2e --locked
 cargo clippy --workspace --all-targets --exclude anila-frontend --locked -- -D warnings
 cargo clippy -p anila-worker -p anila-frontend --target wasm32-unknown-unknown --locked -- -D warnings
 python3 -m unittest discover -s scripts -p 'test_*.py'
-node --test frontend/tests/sw.test.cjs
+node --test frontend/tests/*.test.cjs
 cargo test -p anila-e2e --test functional --test tenancy --test passkey_only --test upgrade -- --nocapture --test-threads=1
 cargo test -p anila-e2e --test chaos -- --nocapture
 cargo test -p anila-e2e --test browser -- --nocapture

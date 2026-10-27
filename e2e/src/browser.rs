@@ -567,19 +567,25 @@ impl Page {
     /// Emulates an iPhone-sized touch device: 390x844 at 3x, mobile layout,
     /// touch events, and an iOS Safari user agent.
     pub async fn emulate_phone(&self) -> Result<()> {
-        self.command(
-            "Emulation.setDeviceMetricsOverride",
-            json!({ "width": 390, "height": 844, "deviceScaleFactor": 3, "mobile": true }),
-        )
-        .await?;
+        self.set_viewport(390, 844, true).await?;
         self.command(
             "Emulation.setTouchEmulationEnabled",
-            json!({ "enabled": true, "maxTouchPoints": 5 }),
+            json!({"enabled":true,"maxTouchPoints":5}),
         )
         .await?;
         self.command(
             "Network.setUserAgentOverride",
-            json!({ "userAgent": "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1" }),
+            json!({"userAgent":"Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1"}),
+        )
+        .await?;
+        Ok(())
+    }
+
+    /// Resize an isolated browser page for responsive layout checks.
+    pub async fn set_viewport(&self, width: u32, height: u32, mobile: bool) -> Result<()> {
+        self.command(
+            "Emulation.setDeviceMetricsOverride",
+            json!({ "width": width, "height": height, "deviceScaleFactor": 3, "mobile": mobile }),
         )
         .await?;
         Ok(())

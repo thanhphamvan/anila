@@ -55,8 +55,8 @@ jobs:
       - name: Deployment configuration and installer guards
         run: python3 -m unittest discover -s scripts -p 'test_*.py'
 
-      - name: Service worker tests
-        run: node --test frontend/tests/sw.test.cjs
+      - name: Frontend script tests
+        run: node --test frontend/tests/*.test.cjs
 
       - name: Fetch all locked dependencies for offline integration builds
         run: cargo fetch --locked
@@ -74,7 +74,7 @@ jobs:
         with:
           tool: trunk@0.22.0
 
-      - name: Terminal clipboard regression
+      - name: Terminal clipboard and mobile display regression
         env:
           ANILA_BROWSER: /usr/bin/google-chrome
-        run: cargo test -p anila-e2e --locked --test clipboard -- --nocapture
+        run: cargo test -p anila-e2e --locked --test clipboard --test mobile_display -- --nocapture
