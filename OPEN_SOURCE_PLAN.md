@@ -52,10 +52,11 @@ work also updates that private consumer; see docs/frontend-sharing.md.
    or a pinned local supplement. Their metadata is included; review upstream
    notices before redistributing binaries containing them (notably frontend
    wasm). This does not change the MIT license on anila's own source.
-3. Select the public GitHub owner/name. Installation tools accept
-   `ANILA_REPO=owner/repository`; Actions use their own repository. A remote
-   is deliberately unset until the destination is selected. No publication,
-   production deployment or release tag has been made.
+3. The public GitHub repository is `thanhphamvan/anila`, connected as
+   `origin`. Installation tools accept `ANILA_REPO=owner/repository`; Actions
+   use their own repository. Source publication does not deploy production
+   or publish binary releases; no production deployment or release tag has
+   been made.
 4. Validate a clean deployment in an independent Cloudflare account and run
    the macOS/launchd and physical-phone instructions on those platforms.
    Local simulation does not establish live Cloudflare readiness or cost.

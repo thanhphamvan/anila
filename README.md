@@ -29,6 +29,13 @@ The common UI lives in `frontend/src/shared/`; `frontend/src/edition.rs`
 supplies the passkey-only behavior. See [frontend sharing](docs/frontend-sharing.md)
 for downstream adapters and deployments consuming this source.
 
+## Get the source
+
+```sh
+git clone https://github.com/thanhphamvan/anila.git
+cd anila
+```
+
 ## Local development
 
 Install stable Rust with the `wasm32-unknown-unknown` target, tmux, a supported

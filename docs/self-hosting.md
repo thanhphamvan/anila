@@ -1,5 +1,6 @@
 # Self-host anila
 
+Get the source from [thanhphamvan/anila](https://github.com/thanhphamvan/anila).
 Deploy into your own Cloudflare account and run the host service on a machine
 you control. Authentication uses passkeys, with no external login provider.
 This guide covers a new installation; see the existing-installation section
