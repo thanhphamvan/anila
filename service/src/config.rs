@@ -3,7 +3,7 @@
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
-use anila_proto::{HostId, Preset, limits};
+use anila_proto::{HostId, Preset, SessionBackend, limits};
 use anyhow::{Context, bail};
 use serde::Deserialize;
 
@@ -23,6 +23,9 @@ pub struct Config {
     /// tmux server socket name (`tmux -L`). Unset means your normal server.
     #[serde(default)]
     pub tmux_socket: Option<String>,
+    /// Enable native herdr sessions with an executable on PATH or an absolute path.
+    #[serde(default)]
+    pub herdr_binary: Option<String>,
     /// Cloudflare Access service token, when the worker's domain is behind
     /// Access: sent as `CF-Access-Client-Id`/`CF-Access-Client-Secret` on
     /// `/ws/agent` and `/api/agent/*`. Set both or neither. The environment
@@ -79,6 +82,8 @@ pub fn access_headers_env(
 #[derive(Deserialize, Debug, Clone, PartialEq)]
 #[serde(deny_unknown_fields)]
 pub struct PresetConfig {
+    #[serde(default)]
+    pub backend: SessionBackend,
     pub id: String,
     pub label: String,
     #[serde(default = "default_dir")]
@@ -158,6 +163,18 @@ impl Config {
         )?;
         let mut ids = HashSet::new();
         for p in &self.presets {
+            if p.backend == SessionBackend::Herdr {
+                if self
+                    .herdr_binary
+                    .as_deref()
+                    .is_none_or(|s| s.trim().is_empty())
+                {
+                    bail!("herdr presets require herdr_binary to be set");
+                }
+                if p.cmd.is_some() {
+                    bail!("herdr presets use herdr's own workspace commands; omit cmd");
+                }
+            }
             if !ids.insert(p.id.as_str()) {
                 bail!("preset id {:?} appears twice", p.id);
             }
@@ -182,6 +199,7 @@ impl Config {
         self.presets
             .iter()
             .map(|p| Preset {
+                backend: p.backend,
                 id: p.id.clone(),
                 label: p.label.clone(),
             })
@@ -237,6 +255,22 @@ mod tests {
         assert!(
             access_headers(Some(" "), Some("")).unwrap().is_empty(),
             "blank means unset"
+        );
+    }
+
+    #[test]
+    fn herdr_presets_are_opt_in_and_preserve_tmux_defaults() {
+        let base = "host='m'\nworker='https://example.com'\n";
+        let preset = "[[preset]]\nid='herdr'\nlabel='Herdr'\nbackend='herdr'\n";
+        assert!(Config::parse(&format!("{base}{preset}")).is_err());
+        let valid = format!("{base}herdr_binary='herdr'\n{preset}");
+        let config = Config::parse(&valid).unwrap();
+        assert_eq!(config.public_presets()[0].backend, SessionBackend::Herdr);
+        assert!(Config::parse(&format!("{valid}cmd='claude'\n")).is_err());
+        assert!(Config::parse(&format!("{base}herdr_binary=''\n{preset}")).is_err());
+        assert_eq!(
+            Config::parse(EXAMPLE).unwrap().presets[0].backend,
+            SessionBackend::Tmux
         );
     }
 

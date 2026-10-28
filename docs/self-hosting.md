@@ -9,7 +9,8 @@ before reusing any Worker or authentication storage.
 ## 1. Prerequisites
 
 You need Linux or macOS with tmux, stable Rust, Node.js/npm, Trunk, worker-build,
-and Python 3.11+ for deployment configuration. Install Rust using
+and Python 3.11+ for deployment configuration. For native herdr sessions
+instead of or alongside tmux, follow [the herdr setup guide](herdr.md). Install Rust using
 [rustup](https://rustup.rs/). On Ubuntu 24.04, install build tools with:
 
 ```sh

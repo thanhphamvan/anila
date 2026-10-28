@@ -13,7 +13,8 @@ pub enum NameError {
     Char(char),
 }
 
-/// A tmux session name: `^[A-Za-z0-9_-]{1,32}$`.
+/// Session identifier: a tmux name, or `herdr:` followed by a native name.
+/// Native names contain 1–32 ASCII letters, digits, underscores or hyphens.
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
 #[serde(try_from = "String", into = "String")]
 pub struct SessionName(String);
@@ -38,7 +39,7 @@ macro_rules! name_type {
         impl $ty {
             pub fn new(s: impl Into<String>) -> Result<Self, NameError> {
                 let s = s.into();
-                check(&s, $allowed)?;
+                check($ty::validation_name(&s), $allowed)?;
                 Ok(Self(s))
             }
 
@@ -68,6 +69,54 @@ macro_rules! name_type {
     };
 }
 
+impl SessionName {
+    fn validation_name(s: &str) -> &str {
+        s.strip_prefix("herdr:").unwrap_or(s)
+    }
+    pub fn backend(&self) -> SessionBackend {
+        if self.0.starts_with("herdr:") {
+            SessionBackend::Herdr
+        } else {
+            SessionBackend::Tmux
+        }
+    }
+    pub fn native_name(&self) -> &str {
+        Self::validation_name(&self.0)
+    }
+    pub fn for_backend(
+        name: impl Into<String>,
+        backend: SessionBackend,
+    ) -> Result<Self, NameError> {
+        let name = name.into();
+        // Validate native input before adding a namespace; reject nested prefixes.
+        check(&name, |c| c.is_ascii_alphanumeric() || c == '_' || c == '-')?;
+        Self::new(match backend {
+            SessionBackend::Tmux => name,
+            SessionBackend::Herdr => format!("herdr:{name}"),
+        })
+    }
+}
+
+impl HostId {
+    fn validation_name(s: &str) -> &str {
+        s
+    }
+}
+
+/// Backend selected by a service preset. Omitted values retain tmux behavior.
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum SessionBackend {
+    #[default]
+    Tmux,
+    Herdr,
+}
+impl SessionBackend {
+    pub fn is_tmux(&self) -> bool {
+        *self == Self::Tmux
+    }
+}
+
 name_type!(SessionName, |c: char| c.is_ascii_alphanumeric()
     || c == '_'
     || c == '-');
@@ -78,6 +127,21 @@ name_type!(HostId, |c: char| c.is_ascii_lowercase()
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn backend_names_are_distinct_and_validated() {
+        let h = SessionName::for_backend("work", SessionBackend::Herdr).unwrap();
+        assert_eq!(h.as_str(), "herdr:work");
+        assert_eq!(h.native_name(), "work");
+        assert_eq!(h.backend(), SessionBackend::Herdr);
+        assert_ne!(h, SessionName::new("work").unwrap());
+        for bad in ["herdr:", "herdr:../work", "herdr:herdr:work", "other:work"] {
+            assert!(SessionName::new(bad).is_err());
+        }
+        assert!(SessionName::new(format!("herdr:{}", "a".repeat(32))).is_ok());
+        assert!(SessionName::new(format!("herdr:{}", "a".repeat(33))).is_err());
+        assert!(HostId::new("herdr:work").is_err());
+    }
 
     #[test]
     fn session_names() {

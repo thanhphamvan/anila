@@ -3,6 +3,7 @@ pub mod buffer;
 pub mod channel;
 pub mod coalesce;
 pub mod config;
+pub mod herdr;
 pub mod keys;
 pub mod link;
 pub mod pair;

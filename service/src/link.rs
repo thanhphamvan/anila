@@ -21,7 +21,7 @@ use crate::coalesce::Coalescer;
 use crate::config::Config;
 use crate::keys::ServiceKey;
 use crate::pty::PtyEvent;
-use crate::spawner::TmuxSpawner;
+use crate::spawner::SessionSpawner;
 use crate::tmux::Tmux;
 
 /// Connection liveness and retry intervals.
@@ -105,11 +105,14 @@ pub async fn run(
     );
     let (events, mut incoming) = tokio::sync::mpsc::unbounded_channel();
     let mut manager = Manager::new(
-        Box::new(TmuxSpawner::new(
-            Tmux::new(config.tmux_socket.clone()),
-            config.presets.clone(),
-            events,
-        )),
+        Box::new(
+            SessionSpawner::new(
+                Tmux::new(config.tmux_socket.clone()),
+                config.presets.clone(),
+                events,
+            )
+            .with_herdr(config.herdr_binary.clone()),
+        ),
         config.public_presets(),
         Limits {
             grace: Duration::from_secs(config.grace_secs),

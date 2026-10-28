@@ -825,7 +825,7 @@ fn SignIn(model: Model) -> impl IntoView {
     };
     view! {
         <section class="signin">
-            <h1>"anila"</h1><p class="muted">"Your tmux sessions, from any browser."</p>
+            <h1>"anila"</h1><p class="muted">"Your terminal sessions, from any browser."</p>
             <button class="primary" disabled=move || busy.get() on:click=move |_| run(false)>"Sign in with passkey"</button>
             {edition::sign_in_button(model, busy)}
             <button disabled=move || busy.get() on:click=move |_| enroll.update(|v| *v = !*v)>"First time on this device?"</button>
@@ -873,11 +873,12 @@ fn Sessions(model: Model) -> impl IntoView {
             <ul class="list">
                 {move || model.sessions.get().into_iter().map(|row| {
                     let name = row.name.clone();
+                    let is_herdr = row.name.starts_with("herdr:");
                     view! { <li><button class="row" on:click=move |_| match SessionName::new(name.clone()) {
                         Ok(name) => { model.error.set(String::new()); model.screen.set(Screen::Terminal(name, None)); }
                         Err(e) => model.error.set(e.to_string()),
                     }><span class="name">{row.name}</span><span class="badge">{row.cmd}</span>
-                    <span class="meta">{format!("{} windows · {} · {} attached", row.windows, activity(row.activity), row.attached)}</span></button></li> }
+                    <span class="meta">{if is_herdr { "herdr · persistent session".to_string() } else { format!("tmux · {} windows · {} · {} attached", row.windows, activity(row.activity), row.attached) }}</span></button></li> }
                 }).collect_view()}
             </ul>
             <p class="muted" hidden=move || !model.sessions.get().is_empty()>"No sessions loaded. Refresh when the host is online, or create a session."</p>
@@ -891,11 +892,15 @@ fn Sessions(model: Model) -> impl IntoView {
                     let choice = presets.iter().find(|p| p.id == selected).or_else(|| presets.first());
                     let Some(choice) = choice else { validation.set("Refresh to load the host's presets first.".into()); return; };
                     model.error.set(String::new());
+                    let name = match SessionName::for_backend(name.as_str(), choice.backend) {
+                        Ok(name) => name,
+                        Err(error) => { validation.set(error.to_string()); return; }
+                    };
                     model.screen.set(Screen::Terminal(name, Some(Create { preset: choice.id.clone() })));
                 }>
                     <label>"Session name"<input prop:value=move || name.get() on:input=move |ev| name.set(event_target_value(&ev)) /></label>
                     <label>"Preset"<select on:change=move |ev| preset.set(event_target_value(&ev))>
-                        {move || model.presets.get().into_iter().map(|p| view! { <option value=p.id>{p.label}</option> }).collect_view()}
+                        {move || model.presets.get().into_iter().map(|p| view! { <option value=p.id>{format!("{} ({})", p.label, if p.backend.is_tmux() { "tmux" } else { "herdr" })}</option> }).collect_view()}
                     </select></label>
                     <p class="error" role="alert">{move || validation.get()}</p>
                     <button class="primary" type="submit">"Create session"</button>

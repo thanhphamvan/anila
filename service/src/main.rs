@@ -14,6 +14,7 @@ use anila_service::{
     keys::ServiceKey,
     link::{self, Timings},
     pair,
+    spawner::SessionSpawner,
     tmux::Tmux,
 };
 
@@ -21,7 +22,7 @@ use anila_service::{
 #[command(
     name = "anila-service",
     version,
-    about = "Serves this machine's tmux sessions to the anila web app"
+    about = "Serves this machine's tmux and herdr sessions to the anila web app"
 )]
 struct Cli {
     /// Config file. Defaults to ~/.config/anila/service.toml.
@@ -64,7 +65,7 @@ enum Cmd {
     Enroll,
     /// End every signed-in browser session.
     RevokeAll,
-    /// List tmux sessions the way the web app will see them.
+    /// List terminal sessions the way the web app will see them.
     Sessions,
     /// Parse the config file and print the result.
     CheckConfig,
@@ -165,9 +166,12 @@ fn main() -> anyhow::Result<()> {
         Cmd::Sessions => {
             let config = load()?;
             let tmux = Tmux::new(config.tmux_socket.clone());
-            let sessions = tmux.list_sessions()?;
+            let (events, _incoming) = tokio::sync::mpsc::unbounded_channel();
+            let spawner = SessionSpawner::new(tmux, config.presets.clone(), events)
+                .with_herdr(config.herdr_binary.clone());
+            let sessions = spawner.list_sessions().map_err(anyhow::Error::msg)?;
             if sessions.is_empty() {
-                println!("no tmux sessions");
+                println!("no sessions");
             }
             for s in sessions {
                 println!(

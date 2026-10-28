@@ -14,6 +14,9 @@
   { "name": "heartbeat", "kind": "hop", "frame": { "t": "heartbeat" } },
   { "name": "room error", "kind": "hop", "frame": { "t": "error", "code": "unauthorized", "msg": "session expired" } },
 
+  { "name": "open herdr create", "kind": "to_agent", "frame": { "t": "open", "tab": 305419896, "ch": 3, "req": 4, "session": "herdr:work", "create": { "preset": "herdr" }, "cols": 80, "rows": 24, "codec": "none" } },
+  { "name": "resume herdr", "kind": "to_agent", "frame": { "t": "resume", "tab": 305419896, "ch": 3, "session": "herdr:work", "epoch": 1, "from": 0, "cols": 80, "rows": 24, "codec": "none" } },
+  { "name": "herdr sessions", "kind": "to_browser", "frame": { "t": "sessions", "tab": 305419896, "req": 4, "items": [{ "name": "herdr:work", "windows": 0, "attached": 0, "activity": 0, "cmd": "herdr" }], "presets": [{ "id": "herdr", "label": "Herdr", "backend": "herdr" }] } },
   { "name": "list", "kind": "to_agent", "frame": { "t": "list", "tab": 305419896, "req": 1 } },
   { "name": "open existing", "kind": "to_agent", "frame": { "t": "open", "tab": 305419896, "ch": 1, "req": 2, "session": "claude", "cols": 120, "rows": 40, "codec": "none" } },
   { "name": "open create", "kind": "to_agent", "frame": { "t": "open", "tab": 305419896, "ch": 2, "req": 3, "session": "notes", "create": { "preset": "shell" }, "cols": 80, "rows": 24, "codec": "zstd_stream" } },

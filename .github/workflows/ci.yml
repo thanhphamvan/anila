@@ -34,6 +34,13 @@ jobs:
       - name: Install tmux
         run: sudo apt-get update && sudo apt-get install -y tmux
 
+      - name: Install pinned herdr for isolated lifecycle regression
+        run: |
+          curl --fail --location --retry 3 https://github.com/herdrdev/herdr/releases/download/v0.9.5/herdr-linux-x86_64 --output "$RUNNER_TEMP/herdr"
+          echo "14d9e8bc8b4a9e0118d77c32266f76d461f09b40342eb23752960bd89f59929d  $RUNNER_TEMP/herdr" | sha256sum --check
+          chmod +x "$RUNNER_TEMP/herdr"
+          echo "ANILA_HERDR_BINARY=$RUNNER_TEMP/herdr" >> "$GITHUB_ENV"
+
       - name: Format
         run: cargo fmt --all --check
 
@@ -74,7 +81,7 @@ jobs:
         with:
           tool: trunk@0.22.0
 
-      - name: Terminal clipboard, mobile display and panel layout regression
+      - name: Terminal clipboard, mobile display, panels and herdr regression
         env:
           ANILA_BROWSER: /usr/bin/google-chrome
-        run: cargo test -p anila-e2e --locked --test clipboard --test mobile_display --test layout -- --nocapture
+        run: cargo test -p anila-e2e --locked --test clipboard --test mobile_display --test layout --test herdr -- --nocapture

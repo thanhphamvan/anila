@@ -191,3 +191,10 @@ Dependencies retain their own licenses; see [third-party notices](THIRD_PARTY_NO
 See [CONTRIBUTING.md](CONTRIBUTING.md) for changes and [SECURITY.md](SECURITY.md)
 for private vulnerability reports. Contact: [code@thanhpv.me](mailto:code@thanhpv.me)
 or [phamthanh_cis60@outlook.com](mailto:phamthanh_cis60@outlook.com).
+
+## Herdr sessions
+
+Anila can serve native [herdr](https://github.com/herdrdev/herdr) sessions
+alongside tmux. See [the setup and compatibility guide](docs/herdr.md).
+Choose a Herdr preset in **New session** to create one. Existing tmux
+configuration continues to use tmux by default.

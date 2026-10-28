@@ -22,6 +22,10 @@ buffer_bytes = 4194304
 # tmux server socket (tmux -L). Leave unset to use your normal server.
 # tmux_socket = "anila"
 
+# Optional native herdr support (install herdr separately for the service user).
+# Set before all [[preset]] sections, then uncomment the Herdr preset below.
+# herdr_binary = "herdr"
+
 [[preset]]
 id    = "shell"
 label = "Shell"
@@ -32,3 +36,10 @@ id    = "claude"
 label = "Claude Code in ~/code"
 dir   = "~/code"
 cmd   = "claude"
+
+# [[preset]]
+# id      = "herdr"
+# label   = "Herdr workspace"
+# backend = "herdr"
+# dir     = "~/code"
+# Herdr manages its own shells/agent commands; omit cmd for this backend.

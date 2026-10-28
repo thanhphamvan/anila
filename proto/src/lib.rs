@@ -17,7 +17,7 @@ pub use control::{
     AgentStatus, Codec, Create, ErrorCode, Hop, Preset, SessionInfo, ToAgent, ToBrowser,
 };
 pub use data::{Data, FrameError};
-pub use names::{HostId, NameError, SessionName};
+pub use names::{HostId, NameError, SessionBackend, SessionName};
 pub use route::{Route, classify};
 
 /// Protocol version. Bump on breaking changes only; additive changes keep it.

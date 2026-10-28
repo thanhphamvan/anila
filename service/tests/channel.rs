@@ -124,6 +124,7 @@ fn rig_with(limits: Limits) -> Rig {
         next
     });
     let presets = vec![Preset {
+        backend: Default::default(),
         id: "shell".into(),
         label: "Shell".into(),
     }];

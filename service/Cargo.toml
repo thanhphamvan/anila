@@ -1,6 +1,6 @@
 [package]
 name = "anila-service"
-description = "Runs on the host machine: dials out to the host room and serves tmux sessions over PTYs"
+description = "Runs on the host machine: dials out to the host room and serves tmux and herdr sessions over PTYs"
 version.workspace = true
 edition.workspace = true
 license.workspace = true

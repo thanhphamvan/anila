@@ -47,6 +47,19 @@ pub fn spawn(
     key: (Tab, Ch, Epoch),
     events: UnboundedSender<PtyEvent>,
 ) -> std::io::Result<PtyProcess> {
+    let mut command = CommandBuilder::new(program);
+    command.args(args);
+    spawn_command(command, cols, rows, key, events)
+}
+
+/// Same PTY lifetime rules, with a caller-prepared child environment.
+pub(crate) fn spawn_command(
+    mut cmd: CommandBuilder,
+    cols: u16,
+    rows: u16,
+    key: (Tab, Ch, Epoch),
+    events: UnboundedSender<PtyEvent>,
+) -> std::io::Result<PtyProcess> {
     let pair = native_pty_system()
         .openpty(PtySize {
             rows,
@@ -57,8 +70,6 @@ pub fn spawn(
         .map_err(io::Error::other)?;
     let mut reader = pair.master.try_clone_reader().map_err(io::Error::other)?;
     let writer = pair.master.take_writer().map_err(io::Error::other)?;
-    let mut cmd = CommandBuilder::new(program);
-    cmd.args(args);
     cmd.env("TERM", "xterm-256color");
     let mut child = pair.slave.spawn_command(cmd).map_err(io::Error::other)?;
     drop(pair.slave);

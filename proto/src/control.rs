@@ -215,6 +215,8 @@ pub struct SessionInfo {
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct Preset {
+    #[serde(default, skip_serializing_if = "crate::SessionBackend::is_tmux")]
+    pub backend: crate::SessionBackend,
     pub id: String,
     pub label: String,
 }
