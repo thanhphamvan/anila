@@ -10,11 +10,17 @@ use serde::{Deserialize, Serialize};
 
 const KEY: &str = "anila.tabs";
 
-#[derive(Serialize, Deserialize, Clone, PartialEq, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub(crate) struct OpenTab {
     pub(crate) host: HostId,
     pub(crate) host_name: String,
     pub(crate) session: SessionName,
+}
+
+impl PartialEq for OpenTab {
+    fn eq(&self, other: &Self) -> bool {
+        self.host == other.host && self.session == other.session
+    }
 }
 
 impl OpenTab {
@@ -64,6 +70,13 @@ pub(crate) fn close(
 impl Model {
     /// Shows a tab's session, switching machines when needed.
     pub(crate) fn show_tab(self, tab: OpenTab) {
+        if matches!(self.screen.get_untracked(), Screen::Terminal(..)) {
+            self.panels.update(|panels| panels.select(tab.clone()));
+            self.pending_session.set(None);
+            self.activate_host(tab.host);
+            self.activate_panel(self.panels.get_untracked().active);
+            return;
+        }
         if self.current.get_untracked().as_ref() == Some(&tab.host) {
             self.error.set(String::new());
             self.screen.set(Screen::Terminal(tab.session, None));
@@ -77,19 +90,20 @@ impl Model {
     }
 
     fn close_tab(self, tab: &OpenTab) {
-        let showing = matches!(
-            self.screen.get_untracked(),
-            Screen::Terminal(ref name, _) if self.current.get_untracked().as_ref() == Some(&tab.host) && name == &tab.session
-        );
+        let showing = matches!(self.screen.get_untracked(), Screen::Terminal(..))
+            && self.panels.get_untracked().current() == Some(tab);
+        let single = self.panels.get_untracked().layout.count() == 1;
         self.close_terminal(&tab.host, &tab.session);
         let mut next = None;
         self.tabs
             .update(|tabs| next = close(tabs, &tab.host, &tab.session));
-        if showing {
+        if showing && single {
             match next {
                 Some(next) => self.show_tab(next),
                 None => self.sessions(),
             }
+        } else if showing && let Some(tab) = self.panels.get_untracked().current().cloned() {
+            self.activate_host(tab.host);
         }
     }
 }
@@ -133,9 +147,7 @@ pub(crate) fn TabBar(model: Model) -> impl IntoView {
         })
     };
     let active = move |tab: &OpenTab| match model.screen.get() {
-        Screen::Terminal(name, _) => {
-            model.current.get().as_ref() == Some(&tab.host) && name == tab.session
-        }
+        Screen::Terminal(..) => model.panels.with(|panels| panels.current() == Some(tab)),
         _ => false,
     };
     view! {

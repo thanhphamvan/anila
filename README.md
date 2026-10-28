@@ -118,6 +118,20 @@ Terminal tabs and the extra key row scroll horizontally. Opening the on-screen
 keyboard resizes the terminal to keep the key row visible; pinch zoom remains
 available. Long machine and session lists scroll within the screen.
 
+## Terminal layouts
+
+Use **Layout** above the terminal to choose **Single terminal** (the default),
+**Dual panels**, **2–1 panels**, or **Four panels** in a 2×2 grid. In the 2–1
+layout, use **Large panel: left/right ⇄** to choose either two stacked panels
+on the left and one large panel on the right, or the mirrored arrangement.
+
+Each panel's session picker uses your open tabs, including tabs from other
+machines. Open more sessions with **+**, then choose them in the panels.
+Click a terminal to activate it; **Copy**, **Ctrl**, and the extra keys target
+that panel. Choosing a session already visible elsewhere swaps the panels.
+Changing layouts preserves attachments and terminal contents. Closing a tab
+detaches its terminal while the tmux session keeps running.
+
 ## Copy terminal text
 
 Drag to select terminal output; the selection is copied automatically when

@@ -17,6 +17,8 @@ mod conn;
 mod edition;
 #[path = "shared/hosts.rs"]
 mod hosts;
+#[path = "shared/layout.rs"]
+mod layout;
 #[path = "shared/passkey.rs"]
 mod passkey;
 #[path = "shared/pool.rs"]

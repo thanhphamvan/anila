@@ -74,7 +74,7 @@ jobs:
         with:
           tool: trunk@0.22.0
 
-      - name: Terminal clipboard and mobile display regression
+      - name: Terminal clipboard, mobile display and panel layout regression
         env:
           ANILA_BROWSER: /usr/bin/google-chrome
-        run: cargo test -p anila-e2e --locked --test clipboard --test mobile_display -- --nocapture
+        run: cargo test -p anila-e2e --locked --test clipboard --test mobile_display --test layout -- --nocapture

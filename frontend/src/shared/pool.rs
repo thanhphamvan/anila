@@ -18,6 +18,15 @@ pub(crate) struct Pool {
     counter: u64,
 }
 
+pub(crate) struct PanelMount<'a> {
+    pub(crate) host: &'a anila_proto::HostId,
+    pub(crate) session: SessionName,
+    pub(crate) create: Option<Create>,
+    pub(crate) parent: &'a web_sys::HtmlElement,
+    pub(crate) index: usize,
+    pub(crate) active: bool,
+}
+
 struct Entry {
     session: SessionName,
     div: web_sys::HtmlDivElement,
@@ -33,6 +42,7 @@ struct Entry {
     size: (u16, u16),
     banner: String,
     shown_at: u64,
+    active: bool,
 }
 
 fn div() -> Result<web_sys::HtmlDivElement, String> {
@@ -62,30 +72,35 @@ impl Pool {
     /// Detach the view without destroying terminals or channels.
     pub(crate) fn detach(&self) {
         if let Some(container) = &self.container {
+            for entry in &self.entries {
+                entry.div.set_hidden(true);
+                let _ = container.append_child(&entry.div);
+            }
             container.remove();
         }
     }
 
     /// Reuse an attachment, evicting the least recently shown when full.
-    pub(crate) fn show(
+    pub(crate) fn show_in(
         &mut self,
         model: Model,
         conn: &Connection,
-        session: SessionName,
-        create: Option<Create>,
+        placement: PanelMount<'_>,
     ) -> Result<(), String> {
+        let PanelMount {
+            host,
+            session,
+            create,
+            parent,
+            index,
+            active,
+        } = placement;
         if !self.entries.iter().any(|e| e.session == session) {
-            let container = self
-                .container
-                .as_ref()
-                .ok_or("Terminal container unavailable")?
-                .clone();
-            let host = model.current.get_untracked().ok_or("Machine unavailable")?;
             if self.entries.len() >= MAX_CHANNELS_PER_TAB
                 && let Some(oldest) = self
                     .entries
                     .iter()
-                    .min_by_key(|e| e.shown_at)
+                    .min_by_key(|e| (!e.div.hidden(), e.shown_at))
                     .map(|e| e.session.clone())
             {
                 self.close(conn, &oldest);
@@ -104,13 +119,14 @@ impl Pool {
                     return Err(api::error(e));
                 }
             };
-            if let Err(e) = container.append_child(&div) {
+            if let Err(e) = parent.append_child(&div) {
                 term.dispose();
                 return Err(api::error(e));
             }
-            for entry in &self.entries {
-                entry.div.set_hidden(true);
-            }
+            div.set_attribute("data-panel", &index.to_string())
+                .map_err(api::error)?;
+            div.set_attribute("data-active", &active.to_string())
+                .map_err(api::error)?;
             term.load_addon(&fit);
             term.open(&div);
             let clipboard = crate::clipboard::CopyBuffer::default();
@@ -139,21 +155,65 @@ impl Pool {
                 size,
                 banner: String::new(),
                 shown_at: 0,
+                active,
             });
         }
         self.counter += 1;
         for entry in &mut self.entries {
-            let shown = entry.session == session;
-            entry.div.set_hidden(!shown);
-            if shown {
+            if entry.session == session {
+                if !entry
+                    .div
+                    .parent_element()
+                    .is_some_and(|element| element.is_same_node(Some(parent)))
+                {
+                    parent.append_child(&entry.div).map_err(api::error)?;
+                }
+                entry.div.set_hidden(false);
+                entry
+                    .div
+                    .set_attribute("data-panel", &index.to_string())
+                    .map_err(api::error)?;
+                entry
+                    .div
+                    .set_attribute("data-active", &active.to_string())
+                    .map_err(api::error)?;
+                entry.active = active;
                 entry.shown_at = self.counter;
-                model.banner.set(entry.banner.clone());
             }
         }
         self.fit_shown(conn);
         // The caller focuses after releasing the pool: focusing can make
         // xterm emit input (a focus report) synchronously.
         Ok(())
+    }
+
+    pub(crate) fn hide_except(&mut self, sessions: &[SessionName]) {
+        for entry in &mut self.entries {
+            if !sessions.contains(&entry.session) {
+                entry.div.set_hidden(true);
+                entry.active = false;
+                if let Some(container) = &self.container {
+                    let _ = container.append_child(&entry.div);
+                }
+            }
+        }
+    }
+
+    pub(crate) fn activate(&mut self, session: Option<&SessionName>) {
+        for entry in &mut self.entries {
+            entry.active = session == Some(&entry.session);
+            let _ = entry
+                .div
+                .set_attribute("data-active", &entry.active.to_string());
+        }
+    }
+
+    pub(crate) fn banner_for(&self, session: &SessionName) -> String {
+        self.entries
+            .iter()
+            .find(|entry| &entry.session == session)
+            .map(|entry| entry.banner.clone())
+            .unwrap_or_default()
     }
 
     /// Deliver output and channel status even while the view is detached.
@@ -179,7 +239,8 @@ impl Pool {
                 }
                 _ => continue,
             }
-            if !entry.div.hidden()
+            if entry.active
+                && !entry.div.hidden()
                 && let Some(banner) = banner
             {
                 banner.set(entry.banner.clone());
@@ -223,14 +284,19 @@ impl Pool {
     }
 
     /// The visible channel used by the key row.
-    pub(crate) fn shown_ch(&self) -> Option<Ch> {
-        self.entries.iter().find(|e| !e.div.hidden()).map(|e| e.ch)
-    }
-
-    pub(crate) fn shown_copy_text(&self) -> Option<String> {
+    pub(crate) fn channel_for(&self, session: &SessionName) -> Option<Ch> {
         self.entries
             .iter()
-            .find(|entry| !entry.div.hidden() && entry.div.is_connected())
+            .find(|e| &e.session == session && !e.div.hidden())
+            .map(|e| e.ch)
+    }
+
+    pub(crate) fn copy_text(&self, session: &SessionName) -> Option<String> {
+        self.entries
+            .iter()
+            .find(|entry| {
+                &entry.session == session && !entry.div.hidden() && entry.div.is_connected()
+            })
             .and_then(|entry| entry.clipboard.text(&entry.term))
     }
 
@@ -240,10 +306,10 @@ impl Pool {
     }
 
     /// Clone the JS handle so the caller can focus after releasing the pool borrow.
-    pub(crate) fn shown_terminal(&self) -> Option<Terminal> {
+    pub(crate) fn terminal_for(&self, session: &SessionName) -> Option<Terminal> {
         self.entries
             .iter()
-            .find(|e| !e.div.hidden() && e.div.is_connected())
+            .find(|e| &e.session == session && !e.div.hidden() && e.div.is_connected())
             .map(|e| JsValue::from(&e.term).unchecked_into())
     }
 }

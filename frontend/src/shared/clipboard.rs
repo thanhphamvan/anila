@@ -78,7 +78,10 @@ pub(crate) fn install_selection(
     let target: Terminal = JsValue::from(term).unchecked_into();
     let container = container.clone();
     let handler = Closure::new(move || {
-        if container.is_connected() && !container.hidden() {
+        if container.is_connected()
+            && !container.hidden()
+            && container.get_attribute("data-active").as_deref() != Some("false")
+        {
             copy(&target.get_selection(), banner);
         }
     });
@@ -100,7 +103,9 @@ pub(crate) fn install_osc52(
             && let Some(text) = crate::clipboard_payload::decode(&data)
         {
             *buffer.0.borrow_mut() = Some(text.clone());
-            copy(&text, banner);
+            if container.get_attribute("data-active").as_deref() != Some("false") {
+                copy(&text, banner);
+            }
         }
         true
     });

@@ -3,8 +3,10 @@
 use crate::{
     account, api,
     conn::{Connection, Notice},
-    edition, hosts, passkey,
-    pool::Pool,
+    edition, hosts,
+    layout::{Layout, Panels},
+    passkey,
+    pool::{PanelMount, Pool},
     pwa,
     tabs::{self, OpenTab, TabBar},
 };
@@ -14,6 +16,7 @@ use anila_proto::{
 };
 use leptos::prelude::*;
 use serde_json::json;
+use wasm_bindgen::JsCast;
 
 use std::collections::HashMap;
 
@@ -72,6 +75,7 @@ pub(crate) struct Model {
     pub(crate) presets: RwSignal<Vec<Preset>>,
     pub(crate) pending_session: RwSignal<Option<SessionName>>,
     pub(crate) tabs: RwSignal<Vec<OpenTab>>,
+    pub(crate) panels: RwSignal<Panels<OpenTab>>,
 }
 
 impl Model {
@@ -120,6 +124,17 @@ impl Model {
 
     /// Detach a session from its machine, even when that machine is hidden.
     pub(crate) fn close_terminal(self, id: &HostId, session: &SessionName) {
+        self.panels.update(|panels| {
+            let tab = panels
+                .slots
+                .iter()
+                .flatten()
+                .find(|tab| &tab.host == id && &tab.session == session)
+                .cloned();
+            if let Some(tab) = tab {
+                panels.remove(&tab);
+            }
+        });
         if let Some(conn) = self.connection(id) {
             self.with_pool(id, |pool| pool.close(&conn, session));
         }
@@ -132,13 +147,162 @@ impl Model {
     }
 
     fn focus(self, id: &HostId) {
-        let term = self.with_pool(id, |pool| pool.shown_terminal()).flatten();
+        let session = self
+            .panels
+            .get_untracked()
+            .current()
+            .filter(|tab| &tab.host == id)
+            .map(|tab| tab.session.clone());
+        let term = session.and_then(|session| {
+            self.with_pool(id, |pool| pool.terminal_for(&session))
+                .flatten()
+        });
         if let Some(term) = term {
             term.focus();
         }
     }
 
+    pub(crate) fn activate_panel(self, index: usize) {
+        let panels = self.panels.get_untracked();
+        if index >= panels.layout.count() {
+            return;
+        }
+        let Some(tab) = panels.slots[index].clone() else {
+            return;
+        };
+        if panels.active != index {
+            self.panels.update(|panels| panels.active = index);
+        }
+        self.machines.update_value(|machines| {
+            for (id, machine) in machines {
+                machine
+                    .pool
+                    .activate((id == &tab.host).then_some(&tab.session));
+            }
+        });
+        if self.current.get_untracked().as_ref() != Some(&tab.host) {
+            self.activate_host(tab.host.clone());
+        }
+    }
+
+    pub(crate) fn assign_panel(self, index: usize, tab: OpenTab) {
+        self.panels
+            .update(|panels| panels.assign(index, tab.clone()));
+        self.pending_session.set(None);
+        self.activate_host(tab.host);
+        self.activate_panel(index);
+    }
+
+    fn set_layout(self, layout: Layout) {
+        let candidates = self
+            .tabs
+            .get_untracked()
+            .into_iter()
+            .filter(|tab| self.connection(&tab.host).is_some())
+            .collect::<Vec<_>>();
+        self.panels
+            .update(|panels| panels.set_layout(layout, &candidates));
+    }
+
+    fn fit_panels(self) {
+        let ids = self
+            .machines
+            .with_value(|machines| machines.keys().cloned().collect::<Vec<_>>());
+        for id in ids {
+            if let Some(conn) = self.connection(&id) {
+                self.with_pool(&id, |pool| pool.fit_shown(&conn));
+            }
+        }
+    }
+
+    fn render_panels(
+        self,
+        root: &web_sys::HtmlElement,
+        parking: &web_sys::HtmlElement,
+        create: Option<(&HostId, &SessionName, Create)>,
+    ) -> bool {
+        let panels = self.panels.get_untracked();
+        let ids = self
+            .machines
+            .with_value(|machines| machines.keys().cloned().collect::<Vec<_>>());
+        for id in &ids {
+            let visible = panels
+                .visible()
+                .iter()
+                .flatten()
+                .filter(|tab| &tab.host == id)
+                .map(|tab| tab.session.clone())
+                .collect::<Vec<_>>();
+            self.with_pool(id, |pool| {
+                if let Err(error) = pool.mount(parking) {
+                    self.banner.set(error);
+                }
+                pool.hide_except(&visible);
+            });
+        }
+        let mut created = false;
+        for (index, tab) in panels
+            .visible()
+            .iter()
+            .enumerate()
+            .filter_map(|(index, tab)| tab.as_ref().map(|tab| (index, tab)))
+        {
+            if !self
+                .links
+                .with_untracked(|links| links.get(&tab.host).is_some_and(|link| link.connected))
+            {
+                continue;
+            }
+            let Some(conn) = self.connection(&tab.host) else {
+                continue;
+            };
+            let Ok(Some(parent)) = root.query_selector(&format!("[data-panel-body='{index}']"))
+            else {
+                continue;
+            };
+            let Some(parent) = parent.dyn_ref::<web_sys::HtmlElement>() else {
+                continue;
+            };
+            let pending = create
+                .as_ref()
+                .filter(|(host, session, _)| *host == &tab.host && *session == &tab.session)
+                .map(|(_, _, create)| create.clone());
+            let result = self.with_pool(&tab.host, |pool| {
+                pool.show_in(
+                    self,
+                    &conn,
+                    PanelMount {
+                        host: &tab.host,
+                        session: tab.session.clone(),
+                        create: pending.clone(),
+                        parent,
+                        index,
+                        active: index == panels.active,
+                    },
+                )
+            });
+            match result {
+                Some(Ok(())) => created |= pending.is_some(),
+                Some(Err(error)) => self.banner.set(error),
+                None => {}
+            }
+        }
+        created
+    }
+
     fn drop_machine(self, id: &HostId) {
+        self.panels.update(|panels| {
+            let tabs = panels
+                .slots
+                .iter()
+                .flatten()
+                .filter(|tab| &tab.host == id)
+                .cloned()
+                .collect::<Vec<_>>();
+            for tab in tabs {
+                panels.remove(&tab);
+            }
+        });
         let machine = self
             .machines
             .try_update_value(|machines| machines.remove(id))
@@ -168,6 +332,7 @@ impl Model {
         self.sessions.set(Vec::new());
         self.presets.set(Vec::new());
         self.pending_session.set(None);
+        self.panels.set(Panels::default());
     }
 
     fn list_machine(self, id: &HostId) {
@@ -278,6 +443,10 @@ impl Model {
     }
     pub(crate) fn connect(self, id: HostId) {
         self.screen.set(Screen::Sessions);
+        self.activate_host(id);
+    }
+
+    pub(crate) fn activate_host(self, id: HostId) {
         self.current.set(Some(id.clone()));
         hosts::remember_host(&id);
         self.host.set(
@@ -410,19 +579,26 @@ impl Model {
                                 .is_some_and(|link| link.connected && link.online)
                         });
                         if live {
-                            let showing = if current {
-                                match self.screen.get_untracked() {
-                                    Screen::Terminal(name, _) => Some(name),
-                                    _ => None,
-                                }
-                            } else {
-                                None
-                            };
+                            let mut showing = self
+                                .panels
+                                .get_untracked()
+                                .visible()
+                                .iter()
+                                .flatten()
+                                .filter(|tab| &tab.host == id)
+                                .map(|tab| tab.session.clone())
+                                .collect::<Vec<_>>();
+                            if showing.is_empty()
+                                && current
+                                && let Screen::Terminal(name, _) = self.screen.get_untracked()
+                            {
+                                showing.push(name);
+                            }
                             let mut closed = Vec::new();
                             self.tabs.update(|tabs| {
                                 tabs.retain(|t| {
                                     let keep = &t.host != id
-                                        || showing.as_ref() == Some(&t.session)
+                                        || showing.contains(&t.session)
                                         || items.iter().any(|i| i.name == t.session.as_str());
                                     if !keep {
                                         closed.push(t.session.clone());
@@ -518,6 +694,7 @@ pub fn App() -> impl IntoView {
         presets: RwSignal::new(Vec::new()),
         pending_session: RwSignal::new(pending_session),
         tabs: RwSignal::new(tabs::load()),
+        panels: RwSignal::new(Panels::default()),
     };
     Effect::new(move |_| model.tabs.with(|t| tabs::save(t)));
     let listener =
@@ -741,18 +918,70 @@ const KEYS: &[(&str, &str)] = &[
 ];
 
 #[component]
+fn TerminalPanel(model: Model, index: usize) -> impl IntoView {
+    let selected = move || {
+        let tab = model.panels.get().slots[index].clone();
+        model
+            .tabs
+            .with(|tabs| tab.and_then(|tab| tabs.iter().position(|candidate| *candidate == tab)))
+            .map(|index| index.to_string())
+            .unwrap_or_default()
+    };
+    view! {
+        <section class="panel-slot" role="group" aria-label=format!("Terminal panel {}", index + 1)
+            style=format!("grid-area:p{index}") hidden=move || { index >= model.panels.get().layout.count() }
+            class:active=move || model.panels.get().active == index>
+            <header class="panel-header">
+                <span class="panel-number">{index + 1}</span>
+                <select aria-label=format!("Session for panel {}", index + 1) prop:value=selected
+                    on:change=move |ev| {
+                        if let Ok(tab_index) = event_target_value(&ev).parse::<usize>()
+                            && let Some(tab) = model.tabs.get_untracked().get(tab_index).cloned()
+                        { model.assign_panel(index, tab); }
+                    }>
+                    <option value="" disabled>"Choose session…"</option>
+                    {move || model.tabs.get().into_iter().enumerate().map(|(index, tab)| view! {
+                        <option value=index.to_string()>{format!("{} / {}", tab.host_name, tab.session)}</option>
+                    }).collect_view()}
+                </select>
+            </header>
+            <div class="panel-body" data-panel-body=index.to_string()
+                on:pointerdown=move |_| model.activate_panel(index) on:focusin=move |_| model.activate_panel(index)>
+                <p class="panel-empty muted">{move || if model.panels.get().slots[index].is_some() { "Waiting for terminal…" } else { "Choose an open session above, or open a session with +." }}</p>
+            </div>
+        </section>
+    }
+}
+
+#[component]
 fn TerminalView(model: Model, name: SessionName, create: Option<Create>) -> impl IntoView {
     let host = NodeRef::<leptos::html::Div>::new();
-    let mounted = StoredValue::new_local(false);
+    let parking = NodeRef::<leptos::html::Div>::new();
     let banner = model.banner;
     let ctrl = model.ctrl;
     let paused = model.paused;
-    let machine = StoredValue::new_local(model.current.get_untracked());
+    let initial_host = model.current.get_untracked();
+    let pending_create = StoredValue::new_local(create);
+    let last_focus = StoredValue::new_local(None::<(usize, OpenTab)>);
+    if let Some(id) = initial_host.clone() {
+        let tab = OpenTab {
+            host: id,
+            host_name: model.host.get_untracked(),
+            session: name.clone(),
+        };
+        model.tabs.update(|tabs| tabs::open(tabs, tab.clone()));
+        model.panels.update(|panels| panels.select(tab));
+    }
+    ctrl.set(false);
+    paused.set(false);
     let send = move |data: &str| {
-        let Some(id) = machine.get_value() else {
+        let Some(tab) = model.panels.get_untracked().current().cloned() else {
             return;
         };
-        let ch = model.with_pool(&id, |pool| pool.shown_ch()).flatten();
+        let id = tab.host;
+        let ch = model
+            .with_pool(&id, |pool| pool.channel_for(&tab.session))
+            .flatten();
         if let Some(ch) = ch {
             if let Some(conn) = model.connection(&id) {
                 model.send(&conn, ch, data);
@@ -761,53 +990,55 @@ fn TerminalView(model: Model, name: SessionName, create: Option<Create>) -> impl
         }
     };
     Effect::new(move |_| {
-        let Some(div) = host.get() else {
+        let _panels = model.panels.get();
+        let _links = model.links.get();
+        let (Some(root), Some(parking)) = (host.get(), parking.get()) else {
             return;
         };
-        if mounted.get_value() {
-            return;
-        }
-        mounted.set_value(true);
-        ctrl.set(false);
-        paused.set(false);
-        let Some(id) = machine.get_value() else {
-            return;
-        };
-        let Some(conn) = model.connection(&id) else {
-            return;
-        };
-        let result = model
-            .with_pool(&id, |pool| {
-                pool.mount(&div)
-                    .and_then(|()| pool.show(model, &conn, name.clone(), create.clone()))
-            })
-            .unwrap_or_else(|| Err("Machine unavailable".into()));
-        // Focus outside the pool borrow: focusing can emit input at once.
-        model.focus(&id);
-        match result {
-            Ok(()) => {
-                if let Some(host) = model.current.get_untracked() {
-                    let tab = OpenTab {
-                        host,
-                        host_name: model.host.get_untracked(),
-                        session: name.clone(),
-                    };
-                    model.tabs.update(|tabs| tabs::open(tabs, tab));
+        let initial_host = initial_host.clone();
+        let name = name.clone();
+        leptos::leptos_dom::helpers::request_animation_frame(move || {
+            if !root.is_connected() {
+                return;
+            }
+            let create = initial_host.as_ref().and_then(|id| {
+                pending_create
+                    .try_get_value()
+                    .flatten()
+                    .map(|create| (id, &name, create))
+            });
+            if model.render_panels(&root, &parking, create) {
+                pending_create.set_value(None);
+            }
+            let panels = model.panels.get_untracked();
+            let focus = panels
+                .current()
+                .filter(|tab| model.has_terminal(&tab.host, &tab.session))
+                .cloned()
+                .map(|tab| (panels.active, tab));
+            let changed = focus != last_focus.get_value();
+            if changed {
+                last_focus.set_value(focus.clone());
+                if let Some((_, tab)) = &focus
+                    && let Some(message) =
+                        model.with_pool(&tab.host, |pool| pool.banner_for(&tab.session))
+                {
+                    banner.set(message);
                 }
             }
-            Err(e) => banner.set(e),
-        }
+            model.fit_panels();
+            if changed && let Some((_, tab)) = focus {
+                model.focus(&tab.host);
+            }
+        });
     });
-    let listener = window_event_listener(leptos::ev::resize, move |_| {
-        if let Some(id) = machine.get_value()
-            && let Some(conn) = model.connection(&id)
-        {
-            model.with_pool(&id, |pool| pool.fit_shown(&conn));
-        }
-    });
+    let listener = window_event_listener(leptos::ev::resize, move |_| model.fit_panels());
     on_cleanup(move || {
         listener.remove();
-        if let Some(id) = machine.get_value() {
+        let ids = model
+            .machines
+            .with_value(|machines| machines.keys().cloned().collect::<Vec<_>>());
+        for id in ids {
             model.with_pool(&id, |pool| pool.detach());
         }
     });
@@ -816,11 +1047,25 @@ fn TerminalView(model: Model, name: SessionName, create: Option<Create>) -> impl
             <TabBar model />
             <Show when=move || !banner.get().is_empty()><div class="error" role="alert">{move || banner.get()}<button on:click=move |_| model.sessions()>"Back to sessions"</button></div></Show>
             <p class="muted small" role="status" hidden=move || !paused.get()>"Input paused while reconnecting"</p>
-            <div class="terms-mount" node_ref=host></div>
+            <div class="workspace-toolbar">
+                <label>"Layout"<select aria-label="Terminal layout" prop:value=move || match model.panels.get().layout { Layout::ThreeLeft | Layout::ThreeRight => "three", layout => layout.name() }
+                    on:change=move |ev| model.set_layout(Layout::parse(&event_target_value(&ev)))>
+                    <option value="single">"Single terminal"</option><option value="dual">"Dual panels"</option>
+                    <option value="three">"2–1 panels"</option><option value="four">"Four panels"</option>
+                </select></label>
+                <button hidden=move || model.panels.get().layout.count() != 3 aria-label="Flip 2–1 layout" on:click=move |_| model.set_layout(model.panels.get_untracked().layout.flipped())>
+                    {move || if model.panels.get().layout == Layout::ThreeLeft { "Large panel: left ⇄" } else { "Large panel: right ⇄" }}
+                </button>
+            </div>
+            <div class="terms-mount terminal-grid" data-layout=move || model.panels.get().layout.name() node_ref=host>
+                {(0..4).map(|index| view! { <TerminalPanel model index /> }).collect_view()}
+            </div>
+            <div class="terminal-parking" hidden node_ref=parking></div>
             <nav class="keys" aria-label="Terminal keys">
                 <button aria-label="Copy terminal text" on:click=move |_| {
-                    if let Some(id) = machine.get_value() {
-                        if let Some(text) = model.with_pool(&id, |pool| pool.shown_copy_text()).flatten() {
+                    if let Some(tab) = model.panels.get_untracked().current().cloned() {
+                        let id = tab.host;
+                        if let Some(text) = model.with_pool(&id, |pool| pool.copy_text(&tab.session)).flatten() {
                             crate::clipboard::copy_explicit(&text, banner);
                         } else {
                             banner.set("Select terminal text first. Hold Shift while dragging if the application captures the mouse.".into());
@@ -828,7 +1073,7 @@ fn TerminalView(model: Model, name: SessionName, create: Option<Create>) -> impl
                         model.focus(&id);
                     }
                 }>"Copy"</button>
-                <button class:primary=move || ctrl.get() aria-pressed=move || ctrl.get().to_string() on:click=move |_| { ctrl.update(|v| *v = !*v); if let Some(id) = machine.get_value() { model.focus(&id); } }>"Ctrl"</button>
+                <button class:primary=move || ctrl.get() aria-pressed=move || ctrl.get().to_string() on:click=move |_| { ctrl.update(|v| *v = !*v); if let Some(id) = model.current.get_untracked() { model.focus(&id); } }>"Ctrl"</button>
                 {KEYS.iter().map(|(label, bytes)| view! { <button aria-label=*label on:click=move |_| send(bytes)>{*label}</button> }).collect_view()}
             </nav>
         </section>
