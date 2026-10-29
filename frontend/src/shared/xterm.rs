@@ -96,5 +96,9 @@ pub fn options() -> JsValue {
         "\"SF Mono\", Menlo, \"IBM Plex Mono\", monospace".into(),
     );
     set("scrollback", 10_000.into());
+    // When tmux or a program captures the mouse, Shift+drag still selects
+    // text in the browser. On a Mac xterm.js uses Option for that, and only
+    // with this option on.
+    set("macOptionClickForcesSelection", true.into());
     o.into()
 }

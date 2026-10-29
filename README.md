@@ -139,7 +139,8 @@ you release the mouse. Tap **Copy** in the terminal key row to copy explicitly
 or retry an application copy blocked by browser permissions. You can also press **Ctrl+Shift+C** (Linux/Windows)
 or **Cmd+C** (macOS). **Ctrl+C** also copies when text is selected; with no
 selection it still interrupts the running command. If tmux or a terminal
-application captures the mouse, hold **Shift** while dragging to select text.
+application captures the mouse, hold **Shift** (**Option** on a Mac) while
+dragging to select text.
 Application copies (including Codex and tmux) can also reach the browser through
 OSC 52. Allow clipboard access for the site if your browser prompts. Clipboard
 read requests from terminal applications are ignored.

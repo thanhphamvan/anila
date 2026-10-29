@@ -1073,7 +1073,7 @@ fn TerminalView(model: Model, name: SessionName, create: Option<Create>) -> impl
                         if let Some(text) = model.with_pool(&id, |pool| pool.copy_text(&tab.session)).flatten() {
                             crate::clipboard::copy_explicit(&text, banner);
                         } else {
-                            banner.set("Select terminal text first. Hold Shift while dragging if the application captures the mouse.".into());
+                            banner.set("Select terminal text first. Hold Shift (Option on a Mac) while dragging if the application captures the mouse.".into());
                         }
                         model.focus(&id);
                     }
