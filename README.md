@@ -160,9 +160,9 @@ and pagers. On small screens, swipe the key row horizontally to reach them.
 
 When a terminal you are not watching rings the bell, the web app plays a
 short chime and, if notifications are allowed, shows a notification that
-opens that session. The app must be open in a tab. For Claude Code, run
-`claude config set --global preferredNotifChannel terminal_bell` so it rings
-when a task completes.
+opens that session. The app must be open in a tab. For Claude Code, set
+Notifications to the terminal bell in `/config` (`"preferredNotifChannel":
+"terminal_bell"` in `~/.claude.json`) so it rings when a task completes.
 
 ## Validation and benchmarks
 
