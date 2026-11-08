@@ -36,6 +36,7 @@ struct Entry {
     _on_key: Closure<dyn FnMut(web_sys::KeyboardEvent) -> bool>,
     _on_selection: Closure<dyn FnMut()>,
     _on_osc52: Closure<dyn FnMut(String) -> bool>,
+    _on_bell: Closure<dyn FnMut()>,
     clipboard: crate::clipboard::CopyBuffer,
     ch: Ch,
     req: Req,
@@ -134,6 +135,16 @@ impl Pool {
             let on_selection = crate::clipboard::install_selection(&term, &div, model.banner);
             let on_osc52 =
                 crate::clipboard::install_osc52(&term, &div, model.banner, clipboard.clone());
+            let on_bell = {
+                let (host, session, div) = (host.clone(), session.clone(), div.clone());
+                Closure::new(move || {
+                    let watching = div.is_connected()
+                        && !div.hidden()
+                        && div.get_attribute("data-active").as_deref() != Some("false");
+                    crate::pwa::notify_bell(host.clone(), session.clone(), watching);
+                })
+            };
+            term.on_bell(&on_bell);
             fit.fit();
             let size = (term.cols(), term.rows());
             let (ch, req) = conn.open(session.clone(), create, size.0, size.1);
@@ -149,6 +160,7 @@ impl Pool {
                 _on_key: on_key,
                 _on_selection: on_selection,
                 _on_osc52: on_osc52,
+                _on_bell: on_bell,
                 clipboard,
                 ch,
                 req,

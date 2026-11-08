@@ -46,6 +46,10 @@ extern "C" {
     #[wasm_bindgen(method, js_name = onSelectionChange)]
     pub fn on_selection_change(this: &Terminal, callback: &Closure<dyn FnMut()>) -> JsValue;
 
+    /// Called on BEL, e.g. Claude Code's `terminal_bell` when a task completes.
+    #[wasm_bindgen(method, js_name = onBell)]
+    pub fn on_bell(this: &Terminal, callback: &Closure<dyn FnMut()>) -> JsValue;
+
     #[wasm_bindgen(method, getter)]
     pub fn parser(this: &Terminal) -> Parser;
 

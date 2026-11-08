@@ -156,6 +156,14 @@ are independent of frontend deployment.
 The key row includes **Page Up** and **Page Down** for terminal applications
 and pagers. On small screens, swipe the key row horizontally to reach them.
 
+## Terminal bell
+
+When a terminal you are not watching rings the bell, the web app plays a
+short chime and, if notifications are allowed, shows a notification that
+opens that session. The app must be open in a tab. For Claude Code, run
+`claude config set --global preferredNotifChannel terminal_bell` so it rings
+when a task completes.
+
 ## Validation and benchmarks
 
 ```sh

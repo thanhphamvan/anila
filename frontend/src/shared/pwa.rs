@@ -122,6 +122,87 @@ pub fn listen(
     Ok(Listener { worker, callback })
 }
 
+/// Chime, and show a notification, for a terminal bell while the user is not
+/// watching that terminal. Reuses the push permission and the worker's click
+/// handler; the chime needs no permission.
+pub(crate) fn notify_bell(host: HostId, session: SessionName, watching: bool) {
+    let visible = web_sys::window()
+        .and_then(|w| w.document())
+        .is_some_and(|d| !d.hidden());
+    let granted = get(&js_sys::global(), "Notification")
+        .and_then(|n| get(&n, "permission"))
+        .is_ok_and(|p| p.as_string().as_deref() == Some("granted"));
+    if visible && watching {
+        return;
+    }
+    let _ = chime();
+    if !granted {
+        return;
+    }
+    spawn_local(async move {
+        let Ok(reg) = registration().await else {
+            return;
+        };
+        let options = json!({
+            "body": "Finished or needs you",
+            "icon": "/icons/icon-192.png",
+            "badge": "/icons/icon-192.png",
+            "tag": session.as_str(),
+            "renotify": true,
+            "data": { "session": session.as_str(), "host": host.as_str() },
+        });
+        let options = js_sys::JSON::parse(&options.to_string()).unwrap_or(JsValue::NULL);
+        if let Ok(shown) = call(
+            &reg,
+            "showNotification",
+            &[session.as_str().into(), options],
+        ) {
+            let _ = resolve(shown).await;
+        }
+    });
+}
+
+thread_local! {
+    // Browsers cap live AudioContexts, so every chime shares one.
+    static AUDIO: std::cell::RefCell<Option<JsValue>> = const { std::cell::RefCell::new(None) };
+}
+
+/// A short two-tone "done" chime, like herdr's, synthesized with Web Audio.
+fn chime() -> Result<(), String> {
+    let ctx = AUDIO.with(|audio| -> Result<JsValue, String> {
+        let mut audio = audio.borrow_mut();
+        if audio.is_none() {
+            let class: Function = get(&js_sys::global(), "AudioContext")?
+                .dyn_into()
+                .map_err(|_| "Web Audio is unavailable")?;
+            *audio = Some(Reflect::construct(&class, &Array::new()).map_err(api::error)?);
+        }
+        Ok(audio.clone().unwrap_or_default())
+    })?;
+    let _ = call(&ctx, "resume", &[]);
+    let now = get(&ctx, "currentTime")?.as_f64().unwrap_or(0.0);
+    let destination = get(&ctx, "destination")?;
+    for (i, freq) in [880.0, 1320.0].into_iter().enumerate() {
+        let start = now + i as f64 * 0.12;
+        let osc = call(&ctx, "createOscillator", &[])?;
+        let gain = call(&ctx, "createGain", &[])?;
+        Reflect::set(&get(&osc, "frequency")?, &"value".into(), &freq.into())
+            .map_err(api::error)?;
+        let level = get(&gain, "gain")?;
+        call(&level, "setValueAtTime", &[0.15.into(), start.into()])?;
+        call(
+            &level,
+            "exponentialRampToValueAtTime",
+            &[0.001.into(), (start + 0.25).into()],
+        )?;
+        call(&osc, "connect", std::slice::from_ref(&gain))?;
+        call(&gain, "connect", std::slice::from_ref(&destination))?;
+        call(&osc, "start", &[start.into()])?;
+        call(&osc, "stop", &[(start + 0.25).into()])?;
+    }
+    Ok(())
+}
+
 fn supported() -> bool {
     ["PushManager", "Notification"]
         .iter()

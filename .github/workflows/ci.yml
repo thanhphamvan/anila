@@ -81,7 +81,7 @@ jobs:
         with:
           tool: trunk@0.22.0
 
-      - name: Terminal clipboard, mobile display, panels and herdr regression
+      - name: Terminal clipboard, bell, mobile display, panels and herdr regression
         env:
           ANILA_BROWSER: /usr/bin/google-chrome
-        run: cargo test -p anila-e2e --locked --test clipboard --test mobile_display --test layout --test herdr -- --nocapture
+        run: cargo test -p anila-e2e --locked --test clipboard --test bell --test mobile_display --test layout --test herdr -- --nocapture
